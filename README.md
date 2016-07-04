@@ -4,7 +4,7 @@ polytempo composition suite for python and extentions
 requires [numpy], [scipy], [Tkinter]
 [numpy]: https://github.com/numpy/numpy
 [scipy]: https://github.com/scipy/scipy
-[Tkinter]: https://github.com/python/python-git/python/blob/master/Lib/lib-tk/Tkinter.py
+[Tkinter]: https://github.com/python/python-git/python/blob/master/Lib/lib-tk/Tkinter
 
 ## current features
 * calculating elapsed time across linear tempo ramps
@@ -16,7 +16,8 @@ requires [numpy], [scipy], [Tkinter]
 * multiple measure support
 * file merge feature
 * .txt wrapper for line-by-line rapid score prototyping
-* [pure data][] external integration for audio preview / live performance [pure data]: https://github.com/pure-data/pure-data
+* [pure data] external integration for audio preview / live performance 
+[pure data]: https://github.com/pure-data/pure-data
 * curve tension support
 * MusicXML support
 * Max/MSP integration / M4L device 
