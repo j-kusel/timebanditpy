@@ -151,6 +151,7 @@ class Application(Frame):
         del self.schema[:]
         ld = tbFile.load()
         if (ld):
+            app.bars.delete(0, END)
             for i in ld:
                 print i
                 self.schema.append(Measure(i[0],i[1],float(i[2]),i[3]))

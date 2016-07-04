@@ -4,7 +4,7 @@ from tkFileDialog import *
 
 def save(themeasures):
     """write all measures to textfile, takes schema list as argument."""
-    thefile = asksaveasfilename(defaultextension='.txt')
+    thefile = asksaveasfilename(defaultextension='.tb')
     if thefile is None:
         pass
     pak = []
@@ -23,13 +23,14 @@ def load():
     """return 2d array of for measure initialization."""
     thefile = open(askopenfilename(), "r")
     lines = thefile.readlines()
+    thefile.close()
     finallines = []
     for l in lines:
         floatlines = [int(float(x)) for x in l.split(' ')]
-        finallines.append(floatlines)
-    thefile.close()
-    if (len(finallines) % 4 == 0):
-        return finallines
-    else:
-        print("ERROR: file corruption")
-        return 0
+        if (len(floatlines) % 4 == 0):
+            finallines.append(floatlines)
+        else:
+            print("ERROR: file corruption")
+            return 0
+    return finallines
+        
