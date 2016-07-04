@@ -1,5 +1,5 @@
 # timebandit
-polytempo composition suite for python and extentions
+polytempo composition suite for python and extensions
 
 requires [numpy], [scipy], [Tkinter]
 [numpy]: https://github.com/numpy/numpy
