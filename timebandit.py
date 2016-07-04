@@ -3,6 +3,7 @@ from Tkinter import *
 from tkFileDialog import *
 import send2pd as pd
 import tbimg
+import tbFile
 from PIL import Image, ImageTk
 
 class Application(Frame):
@@ -82,6 +83,7 @@ class Application(Frame):
         self.therhy.set(str(integrate.quad(self.schema[loc].eq,0,float(self.rhy.get()))[0]))
 
     def rhyinfograb(self, theloc):
+        pass
 
     def pdplay(self):
         for i in range(len(self.schema)):
@@ -142,30 +144,19 @@ class Application(Frame):
         self.refresh()
 
     def Save(self):
-        thefile = asksaveasfilename(defaultextension='.txt')
-        if thefile is None:
-            return
-        pak = []
-        schstr = []
-        for i in self.schema:
-            del schstr[:]
-            schstr.append(str(i.begin))
-            schstr.append(str(i.end))
-            schstr.append(str(i.timesig))
-            schstr.append(str(i.offset))
-            pak.append(' '.join(schstr))
-        with open(thefile, 'w') as f:
-            f.writelines([x+"\n" for x in pak])
+        tbFile.save(self.schema)
 
     def Load(self):
-        thefile = open(askopenfilename(), "r")
+        schemainsure = self.schema
         del self.schema[:]
-        lines = thefile.readlines()
-        for l in lines: #add a new instrument for each line - begin, end, timesig, offset
-            tl = [int(float(x)) for x in l.split(' ')] 
-            self.schema.append(Measure(tl[0],tl[1],float(tl[2]),tl[3]))
-        thefile.close()
-
+        ld = tbFile.load()
+        if (ld):
+            for i in ld:
+                print i
+                self.schema.append(Measure(i[0],i[1],float(i[2]),i[3]))
+        else:
+            self.schema = schemainsure
+            
 class Measure:
 
     def __init__(self, s, e, ts, off=0):
