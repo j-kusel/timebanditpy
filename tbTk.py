@@ -1,5 +1,8 @@
 from Tkinter import *
 
+invarm = None
+invars = None
+
 def Build_core(app, master):
 
     app.menubar = Menu(app)
@@ -14,6 +17,7 @@ def Build_core(app, master):
 
     menu = Menu(app.menubar, tearoff=0)
     app.menubar.add_cascade(label='edit', menu=menu)
+    menu.add_command(label='add inst...', command=app.Inst_manager)
     menu.add_command(label='align...', command=app.Align_popup)
     menu.add_command(label='evaluate...', command=app.rhyeval)
     menu.add_command(label='preferences...')
@@ -56,6 +60,10 @@ def Build_core(app, master):
     app.bars = Listbox(app)
     app.bars.grid(row = 4, column = 0, columnspan=2, ipadx=26)
 
+    app.insts = Listbox(app)
+    app.insts.grid(row = 5, column = 0, columnspan=2, ipadx=26)
+    app.insts.bind('<<ListboxSelect>>', app.Display_measures)
+
     app.alignbut = Button(app, text='align...', command=app.Align_popup)
     app.alignbut.grid(row=1, column=3)
 
@@ -74,30 +82,84 @@ def Build_img(app, pop):
     """Takes main application, Toplevel() window as arguments"""
     pop.title("print")
         
-    app.opslider = Scale(pop, from_=0, to=100)
-    app.opslider.grid(row=0, column=0)
-    app.bpislider = Scale(pop, from_=1, to=10)
-    app.bpislider.grid(row=1, column=0)
-    app.plot = Button(pop, text="print", command=app.imggen)
-    app.plot.grid(row=0, column=1)
+    pop.opslider = Scale(pop, from_=0, to=100)
+    pop.opslider.grid(row=0, column=0)
+    pop.bpislider = Scale(pop, from_=1, to=10)
+    pop.bpislider.grid(row=1, column=0)
+    pop.plot = Button(pop, text="print", command=app.imggen)
+    pop.plot.grid(row=0, column=1)
 
 def Build_align(app, pop):
     """Takes main application, Toplevel() window as arguments"""
     
     pop.title("align")
+    menuinst = []
+    for i in app.inst:
+        menuinst.append(i.name)
+    invarm = StringVar()
+    invars = StringVar()
+    invarm.set(menuinst[0])
+    invars.set(menuinst[0])
 
-    app.masteralign = Listbox(pop, exportselection=0)
-    app.slavealign = Listbox(pop, exportselection=0)
-    app.masteralign.grid(row=0, column=0)
-    app.slavealign.grid(row=0, column=1)
+    pop.masteralign = Listbox(pop, exportselection=0)
+    pop.masterdrop = OptionMenu(pop, invarm, *(menuinst),
+                                command = (lambda invarm: al_box_update(app, pop.masteralign, invarm)))
+    pop.masterdrop.grid(row = 0, column=0)
+    pop.slavealign = Listbox(pop, exportselection=0)
+    pop.slavedrop = OptionMenu(pop, invars, *(menuinst),
+                                command = (lambda invars: al_box_update(app, pop.slavealign, invars)))
+    pop.slavedrop.grid(row=0, column=1)
+    pop.masteralign.grid(row=1, column=0)
+    pop.slavealign.grid(row=1, column=1)
 
-    app.pivotmaster = Entry(pop)
-    app.pivotslave = Entry(pop)
-    app.pivotmaster.grid(row=1, column=0)
-    app.pivotslave.grid(row=1, column=1)
+    for i in app.get_sel_inst():
+        pop.masteralign.insert(END, i.beatstr)
+        pop.slavealign.insert(END, i.beatstr)
 
-    app.goalign = Button(pop, text='align!', command=app.Final_align)
-    app.goalign.grid(row=1, column=2)
+    pop.pivotmaster = Entry(pop)
+    pop.pivotslave = Entry(pop)
+    pop.pivotmaster.grid(row=1, column=0)
+    pop.pivotslave.grid(row=1, column=1)
+
+    
+    pop.goalign = Button(pop, text='align!', command= (lambda: al_final(app, pop)))
+    pop.goalign.grid(row=1, column=2)
+
+def al_box_update(app, box, whichinst):
+    """takes app, Listbox to update, and instrument name as string"""
+    box.delete(0, END)
+    for i in app.inst:
+        if i.name == whichinst:
+            for j in i.measures:
+                box.insert(END, j.beatstr)
+
+def al_final(app, pop):
+    app.Final_align(pop.masterdrop.cget("text"),
+                    pop.slavedrop.cget("text"),
+                    int(pop.masteralign.curselection()[0]),
+                    int(pop.slavealign.curselection()[0]),
+                    int(pop.pivotmaster.get()),
+                    int(pop.pivotslave.get()))
+
+def Build_inst(app, pop):
+    """Takes main application, Toplevel() window as arguments"""
+    pop.title("instrument manager")
+
+    pop.ilab = Label(pop, text='instrument name', relief=RAISED)
+    pop.ilab.grid(row=0, column=0)
+    pop.iname = Entry(pop)
+    pop.iname.grid(row=0, column=1)
+    pop.igo = Button(pop, text='add instrument',
+                     command=(lambda: app.create_inst(pop)))
+    pop.igo.grid(row=0, column=2)
+    pop.ilist = Listbox(pop, exportselection=0)
+    pop.ilist.grid(row=1, column=0, columnspan=2)
+    for i in app.inst:
+        pop.ilist.insert(END, i.name)
+    pop.idel = Button(pop, text='delete instrument',
+                      command=(lambda: app.del_inst(pop, int(pop.ilist.curselection()[0]))))
+    pop.idel.grid(row=2, column=1)
+    
 
 def Clear(app):
     """clears entry boxes after file change or function call"""
@@ -105,3 +167,6 @@ def Clear(app):
     app.end.delete(0, END)
     app.long.delete(0, END)
     app.rhy.delete(0, END)
+
+
+        

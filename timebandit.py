@@ -14,26 +14,38 @@ class Application(Frame):
         self.grid()
         tbTk.Build_core(self, master)
         
+        self.inst = []
+        self.meas = []
 
-        self.schema = []
+    def create_inst(self, pop):
+        name = str(pop.iname.get())
+        self.inst.append(Instrument(name))
+        pop.ilist.insert(END, name)
+        self.refresh()
+
+    def del_inst(self, popup, delind):
+        self.inst.pop(delind)
+        popup.ilist.delete(delind)
+        self.refresh()
 
     def create(self):
         st = self.st.get()
         e = self.end.get()
         l = self.long.get()
+        ins = int(self.insts.curselection()[0])
         print st, e, l
         if st != '' and e != '' and l != '':
-            self.schema.append(Measure(int(st), int(e), float(l)))
+            self.get_sel_inst().append(Measure(ins, int(st), int(e), float(l)))
 
     def refresh(self):
-        self.bars.delete(0, END)
-        for i in self.schema:
-            self.bars.insert(END, i.beatstr) 
+        self.insts.delete(0, END)
+        for i in self.inst:
+            self.insts.insert(END, i.name) 
 
     def rhyeval(self):
         self.rhypop = Toplevel()
         self.rhypop.title("rhythm manager")
-        self.rhyloc = self.schema[int(self.bars.curselection()[0])]
+        self.rhyloc = self.meas[int(self.bars.curselection()[0])]
         self.rhyinfo = self.rhyinfograb(self.rhyloc)
         
         self.schinfo = Label(self.rhypop, textvariable=self.rhyloc)
@@ -43,9 +55,9 @@ class Application(Frame):
         pass
 
     def pdplay(self):
-        for i in range(len(self.schema)):
-            print self.schema[i].beatstr
-            pd.sendout(i, self.schema[i].beatstr)
+        for i in range(len(self.meas)):
+            print self.meas[i].beatstr
+            pd.sendout(i, self.meas[i].beatstr)
         pd.sendout(99, 1)
 
     def imgeval(self):
@@ -57,8 +69,8 @@ class Application(Frame):
         theeqs = []
         tbimg.setopacity(int(self.opslider.get()/100*255))
         tbimg.setbpi(int(self.bpislider.get()))
-        tbimg.setrows(len(self.schema))
-        for j in self.schema:
+        tbimg.setrows(len(self.meas))
+        for j in self.meas:
             tbimg.addbars(j.eq, j.timesig, j.beats[0])
         tbimg.plot()
         self.imgpop.destroy()
@@ -67,44 +79,69 @@ class Application(Frame):
         self.alignpop = Toplevel()
         tbTk.Build_align(self, self.alignpop)
 
-        for i in self.schema:
-            self.masteralign.insert(END, i.beatstr)
-            self.slavealign.insert(END, i.beatstr)
+        
 
-    def Final_align(self):
-        mstr = self.schema[int(self.masteralign.curselection()[0])]
-        slv = self.schema[int(self.slavealign.curselection()[0])]
-        slv.Shift(int(integrate.quad(mstr.eq,0,float(self.pivotmaster.get()))[0]),
-                  int(integrate.quad(slv.eq,0,float(self.pivotslave.get()))[0]))
+    def Final_align(self, mstri, slvi, mstrm, slvm, pmstr, pslv):
+        mi = Instrument()
+        si = Instrument()
+        for i in self.inst:
+            if i.name == mstri:
+                mi = i
+            if i.name == slvi:
+                si = i
+        slv = si.measures[slvm]
+        mstr = mi.measures[mstrm]
+        slv.Shift(int(integrate.quad(mstr.eq,0,pmstr)[0]),
+                  int(integrate.quad(slv.eq,0,pslv)[0]))
         slv.beatstr = slv.Beat_disp()
         self.alignpop.destroy()
         self.refresh()
 
+    def Inst_manager(self):
+        self.instpop = Toplevel()
+        tbTk.Build_inst(self, self.instpop)
         
 
     def Save(self):
-        tbFile.save(self.schema)
+        tbFile.save(self.meas)
 
     def Load(self):
-        schemainsure = self.schema
-        del self.schema[:]
+        measinsure = self.meas
+        del self.meas[:]
         ld = tbFile.load()
         if (ld):
             app.bars.delete(0, END)
             for i in ld:
                 print i
-                self.schema.append(Measure(i[0],i[1],float(i[2]),i[3]))
+                self.meas.append(Measure(None, i[0],i[1],float(i[2]),i[3]))
         else:
-            self.schema = schemainsure
+            self.meas = measinsure
 
     def New(self):
         self.bars.delete(0, END)
         tbTk.Clear(self)
-        del self.schema[:]
+        del self.meas[:]
+
+    def get_sel_inst(self):
+        return self.inst[int(self.insts.curselection()[0])].measures
+
+    def Display_measures(self, sel):
+        self.bars.delete(0, END)
+        if len(self.inst) != 0:
+            for i in self.get_sel_inst():
+                app.bars.insert(END, i.beatstr)
+
+class Instrument:
+
+    def __init__(self, name='<<null>>'):
+        self.name = str(name)
+        self.measures = []
+        if self.name != '<<null>>':
+            app.insts.insert(END, self.name)
             
 class Measure:
 
-    def __init__(self, s, e, ts, off=0):
+    def __init__(self, whichinst, s, e, ts, off=0):
         self.begin = s
         self.end = e
         self.timesig = ts
