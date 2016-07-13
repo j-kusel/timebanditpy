@@ -13,6 +13,7 @@ insts = []
 bars = []
 grid = 0
 pixels = 0
+globaloffset = 0
 
 
 def setdpi(dots=60):
@@ -29,7 +30,6 @@ def setmargins(x=10, y=0):
     margins[1]=y
 
 def plot():
-    reset()
     grid = papersetup()
     timelimits = imagesetup()
     pixels = grid.load()
@@ -46,8 +46,7 @@ def plot():
             print 'BAR', ys, ye
             for i in n.ylines:
                 for j in range(ys, ye):
-                    #print y1, y2, float(i.xloc)*scalar, j
-                    pixels[int(float(i.xloc*scalar))+margins[0], j] = (i.opac, i.opac, i.opac)
+                    pixels[int(float((i.xloc-timelimits[0])*scalar))+margins[0], j] = (i.opac, i.opac, i.opac)
         icount += 1
     grid.save('testimg.png')
     print 'yay'
@@ -62,20 +61,14 @@ def imagesetup():
     for i in insts:
         for j in i:
             for k in j.ylines:
-                #print k.xloc
-                #linepoll = k.xloc
-                #if linepoll < timelimits[0]:
-                #    timelimits[0] = linepoll
-                #elif linepoll > timelimits[1]:
-                #    timelimits[1] = linepoll
                 lns.append(k.xloc)
     timelimits[0] = min(lns)
     timelimits[1] = max(lns)
-    print timelimits
     return timelimits
 
 def reset():
-    insts = []
+    del insts[:]
+    timelimits = [0,0]
 
 def setopacity(op=0):
     opacity = op

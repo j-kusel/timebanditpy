@@ -41,6 +41,8 @@ class Application(Frame):
         self.insts.delete(0, END)
         for i in self.inst:
             self.insts.insert(END, i.name)
+            for j in i.measures:
+                j.beatstr = j.Beat_disp()
         self.bars.delete(0,END)
 
     def rhyeval(self):
@@ -83,6 +85,7 @@ class Application(Frame):
         tbTk.Build_align(self, self.alignpop)
 
     def Final_align(self, mstri, slvi, mstrm, slvm, pmstr, pslv):
+        print mstri, slvi, mstrm, slvm, pmstr, pslv
         pm = 0
         ps = 0
         mi = Instrument()
@@ -114,7 +117,6 @@ class Application(Frame):
     def Inst_manager(self):
         self.instpop = Toplevel()
         tbTk.Build_inst(self, self.instpop)
-        
 
     def Save(self):
         tbFile.save(self.inst)
@@ -132,6 +134,16 @@ class Application(Frame):
                 self.inst[-1].measures.append(Measure(i[0], i[1],i[2],float(i[3]),i[4]))
         else:
             self.inst = instinsure
+        self.refresh()
+
+    def Norm(self):
+        o = self.inst[int(self.insts.curselection()[0])].measures[int(self.bars.curselection()[0])]
+        off = o.beats[0] - o.offset
+        print off
+        for i in self.inst:
+            for j in i.measures:
+                j.offset += off
+                print j.offset
         self.refresh()
 
     def New(self):

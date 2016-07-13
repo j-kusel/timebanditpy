@@ -57,10 +57,10 @@ def Build_core(app, master):
     app.rhylab = Label(app, textvariable=app.therhy, relief=RAISED)
     app.rhylab.grid(row = 1, column = 3)
 
-    app.bars = Listbox(app)
+    app.bars = Listbox(app, exportselection=0)
     app.bars.grid(row = 4, column = 0, columnspan=2, ipadx=26)
 
-    app.insts = Listbox(app)
+    app.insts = Listbox(app, exportselection=0)
     app.insts.grid(row = 5, column = 0, columnspan=2, ipadx=26)
     app.insts.bind('<<ListboxSelect>>', app.Display_measures)
 
@@ -76,7 +76,10 @@ def Build_core(app, master):
     app.savebut = Button(app, text='save...', command=app.Save)
     app.savebut.grid(row=3, column=3)
     app.loadbut = Button(app, text='load...', command=app.Load)
-    app.loadbut.grid(row=3, column=2)    
+    app.loadbut.grid(row=3, column=2)
+
+    app.normbut = Button(app, text='normalize', command=app.Norm)
+    app.normbut.grid(row=4, column=2, columnspan=2)
 
 def Build_img(app, pop):
     """Takes main application, Toplevel() window as arguments"""
@@ -104,6 +107,7 @@ def Build_align(app, pop):
     menuinst = []
     for i in app.inst:
         menuinst.append(i.name)
+    
     invarm = StringVar()
     invars = StringVar()
     invarm.set(menuinst[0])
@@ -120,7 +124,7 @@ def Build_align(app, pop):
     pop.masteralign.grid(row=1, column=0)
     pop.slavealign.grid(row=1, column=1)
 
-    for i in app.get_sel_inst():
+    for i in app.inst[0].measures:
         pop.masteralign.insert(END, i.beatstr)
         pop.slavealign.insert(END, i.beatstr)
 
