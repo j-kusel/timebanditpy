@@ -40,7 +40,8 @@ class Application(Frame):
     def refresh(self):
         self.insts.delete(0, END)
         for i in self.inst:
-            self.insts.insert(END, i.name) 
+            self.insts.insert(END, i.name)
+        self.bars.delete(0,END)
 
     def rhyeval(self):
         self.rhypop = Toplevel()
@@ -66,12 +67,14 @@ class Application(Frame):
         
     def imggen(self):
         tbimg.reset()
-        theeqs = []
-        tbimg.setopacity(int(self.opslider.get()/100*255))
-        tbimg.setbpi(int(self.bpislider.get()))
-        tbimg.setrows(len(self.meas))
-        for j in self.meas:
-            tbimg.addbars(j.eq, j.timesig, j.beats[0])
+        tbimg.setopacity(int(self.imgpop.opslider.get()/100*255))
+        tbimg.setbpi(int(self.imgpop.bpislider.get()))
+        tbimg.setrows(len(self.inst))
+        for i in self.inst:
+            thebars = []
+            for j in i.measures:
+                thebars.append([i.name, j.eq, j.timesig, j.offset])
+            tbimg.addinst(thebars)
         tbimg.plot()
         self.imgpop.destroy()
 
@@ -79,9 +82,9 @@ class Application(Frame):
         self.alignpop = Toplevel()
         tbTk.Build_align(self, self.alignpop)
 
-        
-
     def Final_align(self, mstri, slvi, mstrm, slvm, pmstr, pslv):
+        pm = 0
+        ps = 0
         mi = Instrument()
         si = Instrument()
         for i in self.inst:
@@ -91,9 +94,20 @@ class Application(Frame):
                 si = i
         slv = si.measures[slvm]
         mstr = mi.measures[mstrm]
-        slv.Shift(int(integrate.quad(mstr.eq,0,pmstr)[0]),
-                  int(integrate.quad(slv.eq,0,pslv)[0]))
-        slv.beatstr = slv.Beat_disp()
+        if pmstr.lower() == 'end':
+            pm = mstr.timesig
+        elif pmstr.lower() == 'start':
+            pm = 0
+        else:
+            pm = int(pmstr)-1
+        if pslv.lower() == 'end':
+            ps = slv.timesig
+        elif pslv.lower() == 'start':
+            ps = 0
+        else:
+            ps = int(pslv)-1
+        slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
+                  int(integrate.quad(slv.eq,0,ps)[0]))
         self.alignpop.destroy()
         self.refresh()
 
@@ -103,19 +117,22 @@ class Application(Frame):
         
 
     def Save(self):
-        tbFile.save(self.meas)
+        tbFile.save(self.inst)
 
     def Load(self):
-        measinsure = self.meas
-        del self.meas[:]
+        instinsure = self.inst
+        del self.inst[:]
         ld = tbFile.load()
         if (ld):
+            app.insts.delete(0, END)
             app.bars.delete(0, END)
             for i in ld:
-                print i
-                self.meas.append(Measure(None, i[0],i[1],float(i[2]),i[3]))
+                if not (i[0] in [x.name for x in self.inst]):
+                    self.inst.append(Instrument(i[0]))
+                self.inst[-1].measures.append(Measure(i[0], i[1],i[2],float(i[3]),i[4]))
         else:
-            self.meas = measinsure
+            self.inst = instinsure
+        self.refresh()
 
     def New(self):
         self.bars.delete(0, END)
@@ -148,36 +165,34 @@ class Measure:
         self.offset = off
         self.rhys = []
         self.beatstr = ''
-        self.beats = [
-            o + self.offset for o in self.Calc(self.begin, self.end, self.timesig)
-            ]
+        self.beats = self.Calc(self.begin, self.end, self.timesig)
         app.bars.insert(END, self.beatstr)
         tbTk.Clear(app)
 
-    def Shift(self, pivot, beat):
+    def Shift(self, pivot, beat): #started reworking how offset works
         print pivot
         print beat
-        move = pivot-beat
-        self.beats = [(int(x)+move) for x in self.beats]
-        #self.offset = self.offset + move
-        print self.beats
-            
+        self.offset = pivot - beat
+        print self.offset, "here's the offset"
+        print self.beats, "here's the beats"
+        self.beatstr = self.Beat_disp()
+        app.refresh()
 
     def Calc(self, a, b, size):
         """returns collection of beat times when given start/end/length"""
         self.eq = lambda x: (60000/((b-a)/size*x+a))
         points = []
-        names = ['0']
+        names = [str(self.offset)]
         points.append(0)
         for j in range(1, int(size)):
             points.append(int(integrate.quad(self.eq,0,j)[0]))
-            names.append(str(points[-1]))
+            names.append(str(points[-1]+self.offset))
         self.beatstr = ' '.join(names)
         return points
 
     def Beat_disp(self):
         """returns beat info as string"""
-        return ' '.join(str(x) for x in self.beats)
+        return ' '.join(str(x+self.offset) for x in self.beats)
 
     def Add_rhy(self):
         self.rhys.append(Rhythm(self))

@@ -5,10 +5,11 @@ import time
 dpi = 80
 bpi = 4
 rows = 1
-timemax = 0
-timemin = 0
+timelimits = [0, 0]
 paperxy = [1024, 768]
+margins = [10, 0]
 opacity = 150
+insts = []
 bars = []
 grid = 0
 pixels = 0
@@ -23,48 +24,69 @@ def setbpi(beatdiv=4):
 def setrows(rownum=1):
     rows = rownum
 
+def setmargins(x=10, y=0):
+    margins[0]=x
+    margins[1]=y
+
 def plot():
+    reset()
     grid = papersetup()
+    timelimits = imagesetup()
     pixels = grid.load()
-    themin = min([b.breadth[0] for b in bars])
-    themax = max([b.breadth[1] for b in bars])
-    scalar = float(paperxy[0]-10)/float(themax - themin)
+    scalar = float(paperxy[0]-(margins[0]*2))/float(timelimits[1]-timelimits[0])
     print scalar
     #[ygrid.append(int(i/float(ylinessm[-1])*(paperxy[0]-1))) for i in ylines]
     #[ygridsm.append(int(i/float(ylinessm[-1])*(paperxy[0]-1))) for i in ylinessm]
     print paperxy[0], paperxy[1]
-    for h in range(0, len(bars)):
-        a=0
-        y1 = int(float(h)/float(len(bars))*paperxy[1])
-        y2 = bars[h].tall
-        print 'BAR', h, y1, y2
-        for i in bars[h].ylines:
-            for j in range(y1, y1+y2):
-                #print y1, y2, float(i.xloc)*scalar, j
-                pixels[int(float(i.xloc)*scalar), j] = (i.opac, i.opac, i.opac)
+    icount = 0
+    for m in insts:
+        ys = int(float(icount)/float(len(insts))*paperxy[1])
+        ye = int(float(icount+1)/float(len(insts))*paperxy[1])
+        for n in m:
+            print 'BAR', ys, ye
+            for i in n.ylines:
+                for j in range(ys, ye):
+                    #print y1, y2, float(i.xloc)*scalar, j
+                    pixels[int(float(i.xloc*scalar))+margins[0], j] = (i.opac, i.opac, i.opac)
+        icount += 1
     grid.save('testimg.png')
     print 'yay'
 
 def papersetup(sheet='11x17'): #return an image of blank paper
-    #[paperxy.append(int(i)) for i in sheet.split('x')] #remember to dpi scale later
+    #paperxy = [int(x) for x in sheet.split('x')
     #paperxy.reverse()
     return Image.new('RGB', (paperxy[0],paperxy[1]), "white")
     
 def imagesetup():
-    
-    pass
+    lns = []
+    for i in insts:
+        for j in i:
+            for k in j.ylines:
+                #print k.xloc
+                #linepoll = k.xloc
+                #if linepoll < timelimits[0]:
+                #    timelimits[0] = linepoll
+                #elif linepoll > timelimits[1]:
+                #    timelimits[1] = linepoll
+                lns.append(k.xloc)
+    timelimits[0] = min(lns)
+    timelimits[1] = max(lns)
+    print timelimits
+    return timelimits
 
 def reset():
-    bars[:] = []
+    insts = []
 
 def setopacity(op=0):
     opacity = op
 
-def addbars(eq, beats, offset):
-    bars.append(Bar(eq, beats, offset))
-    for i in bars:
-        i.tall = int(paperxy[1]/len(bars))
-
+def addinst(i):
+    """list of bars containing name, equation, timesig, offset"""
+    insts.append([]) #add list of bars
+    for b in i:
+        insts[-1].append(Bar(b[1],b[2],b[3]))
+    #print insts[name].key()
+    
 def drawbar(thebar, yoff):
     pass
     
@@ -85,6 +107,7 @@ class Bar:
             for k in range(1, bpi):
                 n = int(integrate.quad(self.eq,0,float(j)+(float(k)/bpi))[0]) + self.offset
                 self.ylines.append(Line(n,opacity)) #subdiv line loc, global opacity
+        self.ylines.append(Line(int(integrate.quad(self.eq,0,float(self.timesig))[0]) + self.offset, 100))
         self.breadth[0], self.breadth[1] = self.ylines[0].xloc, self.ylines[-1].xloc
         
 class Line:

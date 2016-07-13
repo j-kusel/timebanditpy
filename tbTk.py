@@ -84,10 +84,18 @@ def Build_img(app, pop):
         
     pop.opslider = Scale(pop, from_=0, to=100)
     pop.opslider.grid(row=0, column=0)
+    pop.oplab = Label(pop, text='opacity')
+    pop.oplab.grid(row=0, column=1)
+    
     pop.bpislider = Scale(pop, from_=1, to=10)
     pop.bpislider.grid(row=1, column=0)
+    pop.bpilab = Label(pop, text='subdivisions')
+    pop.bpilab.grid(row=1, column=1)
+
+    pop.imgex = Button(pop, text='cancel', command=pop.destroy)
+    pop.imgex.grid(row=2, column=0)
     pop.plot = Button(pop, text="print", command=app.imggen)
-    pop.plot.grid(row=0, column=1)
+    pop.plot.grid(row=2, column=1)
 
 def Build_align(app, pop):
     """Takes main application, Toplevel() window as arguments"""
@@ -118,8 +126,8 @@ def Build_align(app, pop):
 
     pop.pivotmaster = Entry(pop)
     pop.pivotslave = Entry(pop)
-    pop.pivotmaster.grid(row=1, column=0)
-    pop.pivotslave.grid(row=1, column=1)
+    pop.pivotmaster.grid(row=2, column=0)
+    pop.pivotslave.grid(row=2, column=1)
 
     
     pop.goalign = Button(pop, text='align!', command= (lambda: al_final(app, pop)))
@@ -138,8 +146,8 @@ def al_final(app, pop):
                     pop.slavedrop.cget("text"),
                     int(pop.masteralign.curselection()[0]),
                     int(pop.slavealign.curselection()[0]),
-                    int(pop.pivotmaster.get()),
-                    int(pop.pivotslave.get()))
+                    pop.pivotmaster.get(), #str
+                    pop.pivotslave.get()) #str
 
 def Build_inst(app, pop):
     """Takes main application, Toplevel() window as arguments"""
