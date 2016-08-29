@@ -69,13 +69,13 @@ class Application(Frame):
         
     def imggen(self):
         tbimg.reset()
-        tbimg.setopacity(int(self.imgpop.opslider.get()/100*255))
+        o = int(float(self.imgpop.opslider.get())/100*255)
+        tbimg.setopacity(o)
         tbimg.setbpi(int(self.imgpop.bpislider.get()))
-        tbimg.setrows(len(self.inst))
         for i in self.inst:
             thebars = []
             for j in i.measures:
-                thebars.append([i.name, j.eq, j.timesig, j.offset])
+                thebars.append([i.name, j.eq, j.timesig, j.offset, j.begin, j.end])
             tbimg.addinst(thebars)
         tbimg.plot()
         self.imgpop.destroy()
