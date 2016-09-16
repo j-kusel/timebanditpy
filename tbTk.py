@@ -136,6 +136,12 @@ def Build_align(app, pop):
     
     pop.goalign = Button(pop, text='align!', command= (lambda: al_final(app, pop)))
     pop.goalign.grid(row=1, column=2)
+    pop.tweakend = Entry(pop)
+    pop.tweakend.grid(row=1, column=2)
+    pop.gotweak = Button(pop, text='anchor to end', command= (lambda: tw_final(app, pop)))
+    pop.gotweak.grid(row=2, column=2)
+    pop.gopad = Button(pop, text='pad to end', command= (lambda: pa_final(app, pop)))
+    pop.gopad.grid(row=0, column=2)
 
 def al_box_update(app, box, whichinst):
     """takes app, Listbox to update, and instrument name as string"""
@@ -152,6 +158,24 @@ def al_final(app, pop):
                     int(pop.slavealign.curselection()[0]),
                     pop.pivotmaster.get(), #str
                     pop.pivotslave.get()) #str
+
+def tw_final(app, pop):
+    app.Final_tweak(pop.masterdrop.cget("text"),
+                    pop.slavedrop.cget("text"),
+                    int(pop.masteralign.curselection()[0]),
+                    int(pop.slavealign.curselection()[0]),
+                    pop.pivotmaster.get(), #str
+                    pop.pivotslave.get(), #str
+		    pop.tweakend.get()) #str
+
+def pa_final(app, pop):
+    app.Final_pad(pop.masterdrop.cget("text"),
+                    pop.slavedrop.cget("text"),
+                    int(pop.masteralign.curselection()[0]),
+                    int(pop.slavealign.curselection()[0]),
+                    pop.pivotmaster.get(), #str
+                    pop.pivotslave.get(), #str
+		    pop.tweakend.get()) #str
 
 def Build_inst(app, pop):
     """Takes main application, Toplevel() window as arguments"""

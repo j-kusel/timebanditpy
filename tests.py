@@ -70,7 +70,7 @@ class Rhythm:
 def three_anchor_tempo(master_m, slave_m):
 
     tolerance = 12
-    tries = 500
+    tries = 100
     f_m = integrate.quad(master_m.eq,0,master_m.timesig-1)[0]
     for i in range(0, tries):
         f_s = integrate.quad(slave_m.eq,0,slave_m.timesig-1)[0]
@@ -94,6 +94,6 @@ print demo2.beats
 
 demo1.end = int(three_anchor_tempo(demo1, demo2))
 print demo2.end
-print demo1.Calc(demo1.begin, demo1.end, demo1.timesig)
+demo1.Calc(demo1.begin, demo1.end, demo1.timesig)
 print demo1.beats
 print demo2.beats
