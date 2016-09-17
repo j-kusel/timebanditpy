@@ -49,29 +49,20 @@ class Application(Frame):
                 j.beatstr = j.Beat_disp()
         self.bars.delete(0,END)
 
-    def rhyeval(self):
-        self.rhypop = Toplevel()
-        self.rhypop.title("rhythm manager")
-        self.rhyloc = self.meas[int(self.bars.curselection()[0])]
-        self.rhyinfo = self.rhyinfograb(self.rhyloc)
-        
-        self.schinfo = Label(self.rhypop, textvariable=self.rhyloc)
-        self.therhy.set(str(integrate.quad(self.rhyloc.eq,0,float(self.rhy.get()))[0]))
-
-    def rhyinfograb(self, theloc):
-        pass
-
     def pdplay(self):
+        """send measure information to pure data"""
         for i in range(len(self.meas)):
             print self.meas[i].beatstr
             pd.sendout(i, self.meas[i].beatstr)
         pd.sendout(99, 1)
 
     def imgeval(self):
+        """open image popup"""
         self.imgpop = Toplevel()
         tbTk.Build_img(self, self.imgpop) #main application, top window
         
     def imggen(self):
+        """plot image"""
         tbimg.reset()
         o = int(float(self.imgpop.opslider.get())/100*255)
         tbimg.setopacity(o)
@@ -91,7 +82,6 @@ class Application(Frame):
 
     def Final_align(self, mstri, slvi, mstrm, slvm, pmstr, pslv):
         """perform alignment calculations, close popup, refresh"""
-        print mstri, slvi, mstrm, slvm, pmstr, pslv
         pm = 0
         ps = 0
         mi = Instrument()
@@ -120,7 +110,8 @@ class Application(Frame):
         self.alignpop.destroy()
         self.refresh()
 
-    def Final_tweak(self, mstri, slvi, mstrm, slvm, pmstr, pslv, pme):
+    def Final_tweak(self, mstri, slvi, mstrm, slvm, pmstr, pslv, pmmv, psmv, chs, che):
+        """master inst, slave inst, master meas, slave meas, master pt, slave pt, master movable pt, slave movable pt"""
         #### next step: tighten up tolerance!!
         mi = Instrument()
         si = Instrument()
@@ -133,10 +124,15 @@ class Application(Frame):
         mstr = mi.measures[mstrm]
         pm = int(pmstr)
         ps = int(pslv)
-        if pme=='':
-            termpt = mstr.timesig-1
+        if pmmv=='':
+            mtermpt = mstr.timesig-1
         else:
-            termpt = int(pme)
+            mtermpt = int(pmmv)
+        if psmv=='':
+            stermpt = slv.timesig-1
+        else:
+            stermpt = int(psmv)
+           
         slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
                   int(integrate.quad(slv.eq,0,ps)[0]))
         # to prepare for aligntest.py code:
@@ -144,42 +140,83 @@ class Application(Frame):
         slave = [slv.begin, slv.end, slv.timesig, ps]
 
         # from aligntest.py:
-        tries = 1000
+        tries = 100
         tolerance = 50
 
         eq_m = lambda x: (60000/((master[1]-master[0])/master[2]*x+master[0]))
-        f_m = integrate.quad(eq_m,pm,termpt)[0]
+        f_m = integrate.quad(eq_m,pm,mtermpt)[0]
         for i in range(0, tries):
             eq_s = lambda x: (60000/((slave[1]-slave[0])/slave[2]*x+slave[0]))
-            f_s = integrate.quad(eq_s,ps,slave[2]-1)[0]
-            dist = f_m - f_s
-            print dist
+            f_s = integrate.quad(eq_s,ps,stermpt)[0]
+            dist = abs(f_m) - abs(f_s)
+            print "master length: %d // slave length: %d" % (f_m, f_s)
             if (abs(dist)<=tolerance):
+                print "%d <= %d tolerance" % (abs(dist), tolerance)
                 # make one more check to see if we can get closer
+                insure = slave[0]
                 ensure = slave[1]
                 if dist > 0:
-                    slave[1]-=1
+                    if chs and che:
+                        slave[0]-=0.5
+                        slave[1]-=0.5
+                        print "minus half"
+                    elif chs and not che:
+                        slave[0]-=1
+                        print "minus beg"
+                    elif che and not chs:
+                        slave[1]-=1
+                        print "minus end"
+                    else:
+                        print "you gotta move something!"
                 else:
-                    slave[1]+=1
+                    if chs and che:
+                        slave[0]+=0.5
+                        slave[1]+=0.5
+                        print "add half"
+                    elif chs and not che:
+                        slave[0]+=1
+                        print "add beg"
+                    elif che and not chs:
+                        slave[1]+=1
+                        print "add end"
+                    else:
+                        print "you gotta move something!"
+
                 eq_s = lambda x: (60000/((slave[1]-slave[0])/slave[2]*x+slave[0]))
-                f_s = integrate.quad(eq_s,ps,slave[2]-1)[0]
-                newdist = f_m - f_s
-                print "double check: %f" % (newdist)
-                print "old end: %d" % (slave[1])
+                f_s = integrate.quad(eq_s,ps,stermpt)[0]
+                newdist = abs(f_m) - abs(f_s)
                 if abs(newdist) < abs(dist):
                     slave[1] = ensure
-                print "success! new end: %d" % (slave[1])
+                    slave[0] = insure
                 slv.end = slave[1]
+                slv.begin = slave[0]
                 slv.beats = slv.Calc(slv.begin, slv.end, slv.timesig)
-                print slv.beats
                 slv.beatstr = slv.Beat_disp()
                 slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
                           int(integrate.quad(slv.eq,0,ps)[0]))
                 break
             if dist > 0:
-                slave[1]-=1
+                #REFACTOR THIS!!!
+                if chs and che:
+                    slave[0]-=0.5
+                    slave[1]-=0.5
+                elif chs and not che:
+                    slave[0]-=1
+                elif che and not chs:
+                    slave[1]-=1
+                else:
+                    print "you gotta move something!"
             else:
-                slave[1]+=1
+                if chs and che:
+                    slave[0]+=0.5
+                    slave[1]+=0.5
+                elif chs and not che:
+                    slave[0]+=1
+                elif che and not chs:
+                    slave[1]+=1
+                else:
+                    print "you gotta move something!"
+            print slave[0], slave[1]
         slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
                   int(integrate.quad(slv.eq,0,ps)[0]))
         
@@ -199,7 +236,7 @@ class Application(Frame):
         mstr = mi.measures[mstrm]
         pm = int(pmstr)
         ps = int(pslv)
-        if pme=='':
+        if pme=='' or pme=='end':
             termpt = mstr.timesig-1
         else:
             termpt = int(pme)
@@ -261,14 +298,17 @@ class Application(Frame):
         self.refresh()
 
     def New(self):
+        """clear all"""
         self.bars.delete(0, END)
         tbTk.Clear(self)
         del self.meas[:]
 
     def get_sel_inst(self):
+        """find what's selected"""
         return self.inst[int(self.insts.curselection()[0])].measures
 
     def Display_measures(self, sel):
+        """show measures"""
         self.bars.delete(0, END)
         if len(self.inst) != 0:
             for i in self.get_sel_inst():
@@ -295,6 +335,7 @@ class Measure:
         tbTk.Clear(app)
 
     def Shift(self, pivot, beat): #started reworking how offset works
+        """change measure offset"""
         print pivot
         print beat
         self.offset = pivot - beat
@@ -317,9 +358,6 @@ class Measure:
         """returns beat info as string"""
         return ' '.join(str(x+self.offset) for x in self.beats)
 
-    def Add_rhy(self):
-        self.rhys.append(Rhythm(self))
-
 class Rhythm:
 
     def __init__(self, parent): #initialize with tie to Measure
@@ -336,6 +374,7 @@ class Rhythm:
     def Update_tr(self):
         pass
 
+# MAIN
     
 root = Tk()
 root.title("timebandit")

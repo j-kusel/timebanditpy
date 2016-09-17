@@ -19,7 +19,7 @@ def Build_core(app, master):
     app.menubar.add_cascade(label='edit', menu=menu)
     menu.add_command(label='add inst...', command=app.Inst_manager)
     menu.add_command(label='align...', command=app.Align_popup)
-    menu.add_command(label='evaluate...', command=app.rhyeval)
+    #menu.add_command(label='evaluate...', command=app.rhyeval)
     menu.add_command(label='preferences...')
 
     menu = Menu(app.menubar, tearoff=0)
@@ -46,8 +46,8 @@ def Build_core(app, master):
 
     app.go = Button(app, text="go", command=app.create, padx = 96)
     app.go.grid(row=3, column=0, columnspan=2)
-    app.eval = Button(app, text="eval...", command=app.rhyeval)
-    app.eval.grid(row = 1, column = 2)
+    #app.eval = Button(app, text="eval...", command=app.rhyeval)
+    #app.eval.grid(row = 1, column = 2)
 
     app.result = StringVar()
     app.output = Label(app, textvariable=app.result, relief=RAISED)
@@ -116,32 +116,50 @@ def Build_align(app, pop):
     pop.masteralign = Listbox(pop, exportselection=0)
     pop.masterdrop = OptionMenu(pop, invarm, *(menuinst),
                                 command = (lambda invarm: al_box_update(app, pop.masteralign, invarm)))
-    pop.masterdrop.grid(row = 0, column=0)
+    pop.masterdrop.grid(row = 0, column=0, columnspan=2)
     pop.slavealign = Listbox(pop, exportselection=0)
     pop.slavedrop = OptionMenu(pop, invars, *(menuinst),
                                 command = (lambda invars: al_box_update(app, pop.slavealign, invars)))
-    pop.slavedrop.grid(row=0, column=1)
-    pop.masteralign.grid(row=1, column=0)
-    pop.slavealign.grid(row=1, column=1)
+    pop.slavedrop.grid(row=0, column=2, columnspan=2)
+    pop.masteralign.grid(row=1, column=0, columnspan=2)
+    pop.slavealign.grid(row=1, column=2, columnspan=2)
 
     for i in app.inst[0].measures:
         pop.masteralign.insert(END, i.beatstr)
         pop.slavealign.insert(END, i.beatstr)
 
     pop.pivotmaster = Entry(pop)
+    pop.pivotm = Label(pop, text="m pivot beat")
     pop.pivotslave = Entry(pop)
-    pop.pivotmaster.grid(row=2, column=0)
-    pop.pivotslave.grid(row=2, column=1)
+    pop.pivots = Label(pop, text="s pivot beat")
+    pop.pivotmaster.grid(row=2, column=1)
+    pop.pivotslave.grid(row=2, column=3)
+    pop.pivotm.grid(row=2, column=0)
+    pop.pivots.grid(row=2, column=2)
 
     
     pop.goalign = Button(pop, text='align!', command= (lambda: al_final(app, pop)))
-    pop.goalign.grid(row=1, column=2)
-    pop.tweakend = Entry(pop)
-    pop.tweakend.grid(row=1, column=2)
-    pop.gotweak = Button(pop, text='anchor to end', command= (lambda: tw_final(app, pop)))
-    pop.gotweak.grid(row=2, column=2)
-    pop.gopad = Button(pop, text='pad to end', command= (lambda: pa_final(app, pop)))
-    pop.gopad.grid(row=0, column=2)
+    pop.goalign.grid(row=1, column=4)
+    pop.tweakm = Entry(pop)
+    pop.tweakm.grid(row=3, column=1)
+    pop.tweakmlab = Label(pop, text="master endpoint")
+    pop.tweakmlab.grid(row=3, column=0)
+    pop.tweakslab = Label(pop, text="slave endpoint")
+    pop.tweakslab.grid(row=3, column=2)
+
+    pop.tweaks = Entry(pop)
+    pop.tweaks.grid(row=3, column=3)
+    pop.gotweak = Button(pop, text='anchor to pt', command= (lambda: tw_final(app, pop)))
+    pop.gotweak.grid(row=2, column=4)
+    pop.gopad = Button(pop, text='pad to pt', command= (lambda: pa_final(app, pop)))
+    pop.gopad.grid(row=0, column=4)
+
+    pop.chs = IntVar()
+    pop.che = IntVar()
+    pop.chstart = Checkbutton(pop, text="anchor start", variable=pop.chs, onvalue=1, offvalue=0)
+    pop.chend = Checkbutton(pop, text="anchor end", variable=pop.che, onvalue=1, offvalue=0)
+    pop.chstart.grid(row=0, column=5)
+    pop.chend.grid(row=1, column=5)
 
 def al_box_update(app, box, whichinst):
     """takes app, Listbox to update, and instrument name as string"""
@@ -157,7 +175,7 @@ def al_final(app, pop):
                     int(pop.masteralign.curselection()[0]),
                     int(pop.slavealign.curselection()[0]),
                     pop.pivotmaster.get(), #str
-                    pop.pivotslave.get()) #str
+                    pop.pivotslave.get())
 
 def tw_final(app, pop):
     app.Final_tweak(pop.masterdrop.cget("text"),
@@ -166,7 +184,10 @@ def tw_final(app, pop):
                     int(pop.slavealign.curselection()[0]),
                     pop.pivotmaster.get(), #str
                     pop.pivotslave.get(), #str
-		    pop.tweakend.get()) #str
+		    pop.tweakm.get(), #str
+                    pop.tweaks.get(),
+                    pop.chs.get(),
+                    pop.che.get())
 
 def pa_final(app, pop):
     app.Final_pad(pop.masterdrop.cget("text"),
