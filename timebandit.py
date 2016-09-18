@@ -110,11 +110,12 @@ class Application(Frame):
         self.alignpop.destroy()
         self.refresh()
 
-    def Final_tweak(self, mi, si, mm, sm, pts, dir):
+    def Final_tweak(self, mm, sm, mm2, pts, dir):
         """master inst, slave inst, master meas, slave meas, master pt, slave pt, master movable pt, slave movable pt"""
         #### next step: tighten up tolerance!!
         slv = sm
         mstr = mm
+        mstr2 = mm2
                    
         slv.Shift(int(integrate.quad(mstr.eq,0,pts[0])[0])+mstr.offset,
                   int(integrate.quad(slv.eq,0,pts[1])[0]))
@@ -124,13 +125,16 @@ class Application(Frame):
         print "dir = %d" % (dir)
 
         eq_m = lambda x: (60000/((mstr.end-mstr.begin)/mstr.timesig*x+mstr.begin))
-        f_m = integrate.quad(eq_m,pts[0],pts[2])[0]
+        eq_m2 = lambda x: (60000/((mstr2.end-mstr2.begin)/mstr2.timesig*x+mstr2.begin))
+
+        f_m = integrate.quad(eq_m,0,pts[0])[0]+mstr.offset
+        f_m2 = integrate.quad(eq_m2,0,pts[3])[0]+mstr2.offset
         final = 0
         for i in range(0, tries):
             eq_s = lambda x: (60000/((slv.end-slv.begin)/slv.timesig*x+slv.begin))
-            f_s = integrate.quad(eq_s,pts[1],pts[3])[0]
-            dist = abs(f_m) - abs(f_s)
-            print "master length: %d // slave length: %d" % (f_m, f_s)
+            f_s = integrate.quad(eq_s,pts[1],pts[2])[0]
+            dist = abs(abs(f_m)-abs(f_m2)) - abs(f_s)
+            print "master lengths: %d %d // slave length: %d" % (f_m, f_m2, f_s)
             if (abs(dist)<=tolerance):
                 final = 1
                 print "%d <= %d tolerance" % (abs(dist), tolerance)
@@ -159,8 +163,8 @@ class Application(Frame):
             if final==1:
                 eq_s = lambda x: (60000/((slv.end-slv.begin)/slv.timesig*x+slv.begin))
                 f_s = integrate.quad(eq_s,pts[1],pts[3])[0]
-                newdist = abs(f_m) - abs(f_s)
-                if abs(newdist) < abs(dist):
+                newdist = abs(abs(f_m)-abs(f_m2)) - abs(f_s)
+                if abs(newdist) > abs(dist):
                     slv.end = ensure
                     slv.begin = insure                
                 slv.beats = slv.Calc(slv.begin, slv.end, slv.timesig)
