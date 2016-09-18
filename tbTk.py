@@ -157,7 +157,7 @@ def Build_align(app, pop):
     pop.chs = IntVar()
     pop.che = IntVar()
     pop.chstart = Checkbutton(pop, text="anchor start", variable=pop.chs, onvalue=1, offvalue=0)
-    pop.chend = Checkbutton(pop, text="anchor end", variable=pop.che, onvalue=1, offvalue=0)
+    pop.chend = Checkbutton(pop, text="anchor end", variable=pop.che, onvalue=2, offvalue=0)
     pop.chstart.grid(row=0, column=5)
     pop.chend.grid(row=1, column=5)
 
@@ -178,16 +178,26 @@ def al_final(app, pop):
                     pop.pivotslave.get())
 
 def tw_final(app, pop):
-    app.Final_tweak(pop.masterdrop.cget("text"),
-                    pop.slavedrop.cget("text"),
-                    int(pop.masteralign.curselection()[0]),
-                    int(pop.slavealign.curselection()[0]),
-                    pop.pivotmaster.get(), #str
-                    pop.pivotslave.get(), #str
-		    pop.tweakm.get(), #str
-                    pop.tweaks.get(),
-                    pop.chs.get(),
-                    pop.che.get())
+    mp = pop.pivotmaster.get()
+    sp = pop.pivotslave.get()
+    pmmv = pop.tweakm.get()
+    psmv = pop.tweaks.get()
+    dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
+
+    mstri = pop.masterdrop.cget("text")
+    slvi = pop.slavedrop.cget("text")
+    mi = 0
+    si = 0
+    for i in app.inst:
+        if i.name == mstri:
+            mm = i.measures[int(pop.masteralign.curselection()[0])]
+        if i.name == slvi:
+            sm = i.measures[int(pop.slavealign.curselection()[0])]
+    if pmmv=='' or psmv=='' or mp=='' or sp=='':
+        pass
+    else:
+        pts = [int(mp), int(sp), int(pmmv), int(psmv)]
+        app.Final_tweak(mi, si, mm, sm, pts, dir)
 
 def pa_final(app, pop):
     app.Final_pad(pop.masterdrop.cget("text"),

@@ -110,116 +110,65 @@ class Application(Frame):
         self.alignpop.destroy()
         self.refresh()
 
-    def Final_tweak(self, mstri, slvi, mstrm, slvm, pmstr, pslv, pmmv, psmv, chs, che):
+    def Final_tweak(self, mi, si, mm, sm, pts, dir):
         """master inst, slave inst, master meas, slave meas, master pt, slave pt, master movable pt, slave movable pt"""
         #### next step: tighten up tolerance!!
-        mi = Instrument()
-        si = Instrument()
-        for i in self.inst:
-            if i.name == mstri:
-                mi = i
-            if i.name == slvi:
-                si = i
-        slv = si.measures[slvm]
-        mstr = mi.measures[mstrm]
-        pm = int(pmstr)
-        ps = int(pslv)
-        if pmmv=='':
-            mtermpt = mstr.timesig-1
-        else:
-            mtermpt = int(pmmv)
-        if psmv=='':
-            stermpt = slv.timesig-1
-        else:
-            stermpt = int(psmv)
-           
-        slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
-                  int(integrate.quad(slv.eq,0,ps)[0]))
-        # to prepare for aligntest.py code:
-        master = [mstr.begin, mstr.end, mstr.timesig, pm]
-        slave = [slv.begin, slv.end, slv.timesig, ps]
+        slv = sm
+        mstr = mm
+                   
+        slv.Shift(int(integrate.quad(mstr.eq,0,pts[0])[0])+mstr.offset,
+                  int(integrate.quad(slv.eq,0,pts[1])[0]))
 
-        # from aligntest.py:
         tries = 100
         tolerance = 50
+        print "dir = %d" % (dir)
 
-        eq_m = lambda x: (60000/((master[1]-master[0])/master[2]*x+master[0]))
-        f_m = integrate.quad(eq_m,pm,mtermpt)[0]
+        eq_m = lambda x: (60000/((mstr.end-mstr.begin)/mstr.timesig*x+mstr.begin))
+        f_m = integrate.quad(eq_m,pts[0],pts[2])[0]
+        final = 0
         for i in range(0, tries):
-            eq_s = lambda x: (60000/((slave[1]-slave[0])/slave[2]*x+slave[0]))
-            f_s = integrate.quad(eq_s,ps,stermpt)[0]
+            eq_s = lambda x: (60000/((slv.end-slv.begin)/slv.timesig*x+slv.begin))
+            f_s = integrate.quad(eq_s,pts[1],pts[3])[0]
             dist = abs(f_m) - abs(f_s)
             print "master length: %d // slave length: %d" % (f_m, f_s)
             if (abs(dist)<=tolerance):
+                final = 1
                 print "%d <= %d tolerance" % (abs(dist), tolerance)
-                # make one more check to see if we can get closer
-                insure = slave[0]
-                ensure = slave[1]
-                if dist > 0:
-                    if chs and che:
-                        slave[0]-=0.5
-                        slave[1]-=0.5
-                        print "minus half"
-                    elif chs and not che:
-                        slave[0]-=1
-                        print "minus beg"
-                    elif che and not chs:
-                        slave[1]-=1
-                        print "minus end"
-                    else:
-                        print "you gotta move something!"
-                else:
-                    if chs and che:
-                        slave[0]+=0.5
-                        slave[1]+=0.5
-                        print "add half"
-                    elif chs and not che:
-                        slave[0]+=1
-                        print "add beg"
-                    elif che and not chs:
-                        slave[1]+=1
-                        print "add end"
-                    else:
-                        print "you gotta move something!"
-
-                eq_s = lambda x: (60000/((slave[1]-slave[0])/slave[2]*x+slave[0]))
-                f_s = integrate.quad(eq_s,ps,stermpt)[0]
-                newdist = abs(f_m) - abs(f_s)
-                if abs(newdist) < abs(dist):
-                    slave[1] = ensure
-                    slave[0] = insure
-                slv.end = slave[1]
-                slv.begin = slave[0]
-                slv.beats = slv.Calc(slv.begin, slv.end, slv.timesig)
-                slv.beatstr = slv.Beat_disp()
-                slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
-                          int(integrate.quad(slv.eq,0,ps)[0]))
-                break
+            insure = slv.begin
+            ensure = slv.end        
             if dist > 0:
-                #REFACTOR THIS!!!
-                if chs and che:
-                    slave[0]-=0.5
-                    slave[1]-=0.5
-                elif chs and not che:
-                    slave[0]-=1
-                elif che and not chs:
-                    slave[1]-=1
+                if dir==3: #both
+                    slv.begin-=0.5
+                    slv.end-=0.5
+                elif dir==1: #change begin
+                    slv.begin-=1
+                elif dir==2: #change end
+                    slv.end-=1
                 else:
                     print "you gotta move something!"
             else:
-                if chs and che:
-                    slave[0]+=0.5
-                    slave[1]+=0.5
-                elif chs and not che:
-                    slave[0]+=1
-                elif che and not chs:
-                    slave[1]+=1
+                if dir==3: #both
+                    slv.begin+=0.5
+                    slv.end+=0.5
+                elif dir==1: #change begin
+                    slv.begin+=1
+                elif dir==2: #change end
+                    slv.end+=1
                 else:
                     print "you gotta move something!"
-            print slave[0], slave[1]
-        slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
-                  int(integrate.quad(slv.eq,0,ps)[0]))
-        
+            if final==1:
+                eq_s = lambda x: (60000/((slv.end-slv.begin)/slv.timesig*x+slv.begin))
+                f_s = integrate.quad(eq_s,pts[1],pts[3])[0]
+                newdist = abs(f_m) - abs(f_s)
+                if abs(newdist) < abs(dist):
+                    slv.end = ensure
+                    slv.begin = insure                
+                slv.beats = slv.Calc(slv.begin, slv.end, slv.timesig)
+                slv.beatstr = slv.Beat_disp()                
+                break
+
+        slv.Shift(int(integrate.quad(mstr.eq,0,pts[0])[0])+mstr.offset,
+                  int(integrate.quad(slv.eq,0,pts[1])[0]))        
         self.alignpop.destroy()
         self.refresh()
     #############################
