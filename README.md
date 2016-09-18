@@ -11,11 +11,12 @@ requires [numpy], [scipy], [Tkinter]
 * beat alignment between multiple instruments
 * tbimg.py for generating graph paper / measure visualization
 * easy load/save filesystem with .tb extension
+* multiple measure support
+* automatic alignment / tempo fitting around anchor points
 
 ## planned features
-* multiple measure support
 * file merge feature
-* .txt wrapper for line-by-line rapid score prototyping
+* .txt wrapper / shell mode for line-by-line rapid score prototyping
 * [pure data] external integration for audio preview / live performance 
 [pure data]: https://github.com/pure-data/pure-data
 * curve tension support
