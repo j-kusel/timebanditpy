@@ -10,12 +10,11 @@ requires [numpy], [scipy], [Tkinter]
 * calculating elapsed time across linear tempo ramps
 * beat alignment between multiple instruments
 * tbimg.py for generating graph paper / measure visualization
-* easy load/save filesystem with .tb extension
+* easy load/save/merge filesystem with .tb extension
 * multiple measure support
 * automatic alignment / tempo fitting around anchor points
 
 ## planned features
-* file merge feature
 * .txt wrapper / shell mode for line-by-line rapid score prototyping
 * [pure data] external integration for audio preview / live performance 
 [pure data]: https://github.com/pure-data/pure-data

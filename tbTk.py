@@ -11,7 +11,7 @@ def Build_core(app, master):
     app.menubar.add_cascade(label='file', menu=menu)
     menu.add_command(label='new', command=app.New)
     menu.add_command(label='open...', command=app.Load)
-    menu.add_command(label='merge...')
+    menu.add_command(label='merge...', command=app.Merge)
     menu.add_command(label='save...', command=app.Save)
     menu.add_command(label='print...', command=app.imgeval)
 

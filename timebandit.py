@@ -200,20 +200,24 @@ class Application(Frame):
     def Save(self):
         tbFile.save(self.inst)
 
-    def Load(self):
+    def Load(self, merge=0):
         instinsure = self.inst
-        del self.inst[:]
         ld = tbFile.load()
         if (ld):
-            app.insts.delete(0, END)
-            app.bars.delete(0, END)
+            if merge==0:
+                del self.inst[:]
+                app.insts.delete(0, END)
+                app.bars.delete(0, END)
             for i in ld:
                 if not (i[0] in [x.name for x in self.inst]):
                     self.inst.append(Instrument(i[0]))
-                self.inst[-1].measures.append(Measure(i[0], i[1],i[2],float(i[3]),i[4]))
+                    self.inst[-1].measures.append(Measure(i[0], i[1],i[2],float(i[3]),i[4]))
         else:
             self.inst = instinsure
         self.refresh()
+
+    def Merge(self):
+        self.Load(merge=1)
 
     def Norm(self):
         """adjust offsets so there are no negative timecodes"""
