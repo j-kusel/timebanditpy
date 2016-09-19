@@ -191,12 +191,32 @@ def al_box_update(app, box, whichinst):
                 box.insert(END, j.beatstr)
 
 def al_final(app, pop):
-    app.Final_align(pop.masterdrop.cget("text"),
-                    pop.slavedrop.cget("text"),
-                    int(pop.masteralign.curselection()[0]),
-                    int(pop.slavealign.curselection()[0]),
-                    pop.pivotmaster.get(), #str
-                    pop.pivotslave.get())
+    mstri = pop.masterdrop.cget("text")
+    slvi = pop.slavedrop.cget("text")
+    mp = pop.pivotmaster.get()
+    sp = pop.pivotslave.get()
+    if mp=='' or sp=='':
+        return
+    for i in app.inst:
+        if i.name == mstri:
+            mm = i.measures[int(pop.masteralign.curselection()[0])]
+        if i.name == slvi:
+            sm = i.measures[int(pop.slavealign.curselection()[0])]
+    if mp.lower()=='start':
+        mp = 0
+    elif mp.lower()=='end':
+        mp = mm.timesig
+    else:
+        mp = int(mp)
+
+    if sp.lower()=='start':
+        sp = 0
+    elif sp.lower()=='end':
+        sp = sm.timesig
+    else:
+        sp = int(sp)
+   
+    app.Final_align(mm, sm, mp, sp)
 
 def tw_final(app, pop):
     mp = pop.pivotmaster.get()

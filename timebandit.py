@@ -80,33 +80,9 @@ class Application(Frame):
         self.alignpop = Toplevel()
         tbTk.Build_align(self, self.alignpop)
 
-    def Final_align(self, mstri, slvi, mstrm, slvm, pmstr, pslv):
+    def Final_align(self, mm, sm, mp, sp):
         """perform alignment calculations, close popup, refresh"""
-        pm = 0
-        ps = 0
-        mi = Instrument()
-        si = Instrument()
-        for i in self.inst:
-            if i.name == mstri:
-                mi = i
-            if i.name == slvi:
-                si = i
-        slv = si.measures[slvm]
-        mstr = mi.measures[mstrm]
-        if pmstr.lower() == 'end':
-            pm = mstr.timesig
-        elif pmstr.lower() == 'start':
-            pm = 0
-        else:
-            pm = int(pmstr)-1
-        if pslv.lower() == 'end':
-            ps = slv.timesig
-        elif pslv.lower() == 'start':
-            ps = 0
-        else:
-            ps = int(pslv)-1
-        slv.Shift(int(integrate.quad(mstr.eq,0,pm)[0])+mstr.offset,
-                  int(integrate.quad(slv.eq,0,ps)[0]))
+        sm.Shift(mm.Eval(mp)+mm.offset,sm.Eval(sp))
         self.alignpop.destroy()
         self.refresh()
 
@@ -310,6 +286,9 @@ class Measure:
     def Beat_disp(self):
         """returns beat info as string"""
         return ' '.join(str(x+self.offset) for x in self.beats)
+
+    def Eval(self, beat, start=0):
+        return int(integrate.quad(self.eq,start,beat)[0])
 
 class Rhythm:
 
