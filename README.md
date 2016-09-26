@@ -15,7 +15,7 @@ requires [numpy], [scipy], [Tkinter]
 * automatic alignment / tempo fitting around anchor points
 
 ## planned features
-* .txt wrapper / shell mode for line-by-line rapid score prototyping
+* .txt compiler / interpretive shell for line-by-line rapid score prototyping
 * [pure data] external integration for audio preview / live performance 
 [pure data]: https://github.com/pure-data/pure-data
 * curve tension support

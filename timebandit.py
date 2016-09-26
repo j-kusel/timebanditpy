@@ -5,6 +5,8 @@ import send2pd as pd
 import tbimg
 import tbFile
 import tbTk
+import sys
+import argparse
 from PIL import Image, ImageTk
 
 class Application(Frame):
@@ -311,10 +313,25 @@ class Rhythm:
         pass
 
 # MAIN
-    
-root = Tk()
-root.title("timebandit")
-#root.geometry("1024x768")
+def main():    
+    root = Tk()
+    root.title("timebandit")
+    #root.geometry("1024x768")
 
-app = Application(root)
-root.mainloop()
+    app = Application(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        print 'noargs'
+        main()
+    else:
+        try:
+            import tbUtil
+            parser = tbUtil.tbParser(sys.argv)
+            command, flags = parser.parse()
+            print flags
+            tbUtil.AppExec(command, flags)
+        except ImportError:
+            raise ImportError("tbParser import failed!")
+            
