@@ -194,6 +194,7 @@ class Application(Frame):
             else:
                 slave[2]-=.25
             print "at try %d we are %d away" % (i, dist)
+        self.refresh()
 
     def Inst_manager(self):
         self.instpop = Toplevel()
@@ -208,8 +209,8 @@ class Application(Frame):
         if (ld):
             if merge==0:
                 del self.inst[:]
-                app.insts.delete(0, END)
-                app.bars.delete(0, END)
+                self.insts.delete(0, END)
+                self.bars.delete(0, END)
             for i in ld:
                 if not (i[0] in [x.name for x in self.inst]):
                     self.inst.append(Instrument(i[0]))
@@ -247,15 +248,21 @@ class Application(Frame):
         self.bars.delete(0, END)
         if len(self.inst) != 0:
             for i in self.get_sel_inst():
-                app.bars.insert(END, i.beatstr)
+                self.bars.insert(END, i.beatstr)
+        for i in self.inst:
+            print i
 
 class Instrument:
 
     def __init__(self, name='<<null>>'):
         self.name = str(name)
         self.measures = []
-        if self.name != '<<null>>':
-            app.insts.insert(END, self.name)
+
+    def __str__(self):
+        strm = '{}: {}\n'.format(self.__class__.__name__, self.name)
+        for i in self.measures:
+            strm += '\t{}: {}'.format(i.__class__.__name__, i)
+        return strm
             
 class Measure:
 
@@ -266,8 +273,10 @@ class Measure:
         self.offset = off
         self.beats = self.Calc(self.begin, self.end, self.timesig)
         self.beatstr = self.Beat_disp()
-        app.bars.insert(END, self.beatstr)
-        tbTk.Clear(app)
+        print whichinst
+
+    def __str__(self):
+        return '{0} to {1}; {2}'.format(self.begin, self.end, self.timesig)
 
     def Shift(self, pivot, beat): #started reworking how offset works
         """change measure offset"""
@@ -277,7 +286,6 @@ class Measure:
         print self.offset, "here's the offset"
         print self.beats, "here's the beats"
         self.beatstr = self.Beat_disp()
-        app.refresh()
 
     def Calc(self, a, b, size):
         """returns collection of beat times when given start/end/length"""
@@ -312,6 +320,17 @@ class Rhythm:
     def Update_tr(self):
         pass
 
+# TESTING
+def testsuite():
+    inst = []
+    for i in range(0,3):
+        inst.append(Instrument(name=str(i)))
+        for i in range(0,3):
+            inst[-1].measures.append(Measure(inst[-1],60,120,5))
+
+    for i in inst:
+        print i
+
 # MAIN
 def main():    
     root = Tk()
@@ -325,6 +344,9 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         print 'noargs'
         main()
+    elif sys.argv[1] == 'test':
+        print "tests not available in this release"
+        #testsuite()
     else:
         try:
             import tbUtil
