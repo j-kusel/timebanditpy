@@ -5,8 +5,8 @@ import send2pd as pd
 import tbimg
 import tbFile
 import tbTk
-import sys
-import argparse
+import sys, argparse
+from collections import OrderedDict
 from PIL import Image, ImageTk
 
 class Application(Frame):
@@ -16,19 +16,19 @@ class Application(Frame):
         self.grid()
         tbTk.Build_core(self, master)
         
-        self.inst = []
+        self.inst = InstManager()
         self.meas = []
 
     def create_inst(self, pop):
         """add a new instrument"""
         name = str(pop.iname.get())
-        self.inst.append(Instrument(name))
+        self.inst[name] = []
         pop.ilist.insert(END, name)
         self.refresh()
 
     def del_inst(self, popup, delind):
         """remove an instrument"""
-        self.inst.pop(delind)
+        del self.inst[self.inst.index(delind)]
         popup.ilist.delete(delind)
         self.refresh()
 
@@ -43,9 +43,10 @@ class Application(Frame):
         """rebuild instruments list, beat strings"""
         self.insts.delete(0, END)
         for i in self.inst:
-            self.insts.insert(END, i.name)
-            for j in i.measures:
-                j.beatstr = j.Beat_disp()
+            j = self.inst[i]
+            self.insts.insert(END, i)
+            for m in j:
+                m.beatstr = m.Beat_disp()
         self.bars.delete(0,END)
 
     def pdplay(self):
@@ -67,10 +68,7 @@ class Application(Frame):
         tbimg.setopacity(o)
         tbimg.setbpi(int(self.imgpop.bpislider.get()))
         for i in self.inst:
-            thebars = []
-            for j in i.measures:
-                thebars.append([i.name, j.eq, j.timesig, j.offset, j.begin, j.end])
-            tbimg.addinst(thebars)
+            tbimg.addinst(self.inst[i])
         tbimg.plot()
         self.imgpop.destroy()
 
@@ -153,15 +151,13 @@ class Application(Frame):
     #############################
 
     def Final_pad(self, mstri, slvi, mstrm, slvm, pmstr, pslv, pme):
-        mi = Instrument()
-        si = Instrument()
         for i in self.inst:
-            if i.name == mstri:
-                mi = i
-            if i.name == slvi:
-                si = i
-        slv = si.measures[slvm]
-        mstr = mi.measures[mstrm]
+            if i == mstri:
+                mi = self.inst[i]
+            if i == slvi:
+                si = self.inst[i]
+        slv = si[slvm]
+        mstr = mi[mstrm]
         pm = int(pmstr)
         ps = int(pslv)
         if pme=='' or pme=='end':
@@ -205,40 +201,42 @@ class Application(Frame):
         ld = tbFile.load()
         if (ld):
             if merge==0:
-                del self.inst[:]
+                self.inst = OrderedDict()
                 self.insts.delete(0, END)
                 self.bars.delete(0, END)
             for i in ld:
-                if not (i[0] in [x.name for x in self.inst]):
-                    self.inst.append(Instrument(i[0]))
-                    self.inst[-1].measures.append(Measure(i[0], i[1],i[2],float(i[3]),i[4]))
+                newmeas = Measure(name, i[1],i[2],float(i[3]),i[4])
+                ## check if the instrument exists yet
+                if self.inst[i[0]]:
+                    self.inst[i[0]].append(newmeas)
+                else:
+                    self.inst[i[0]] = newmeas
         else:
             self.inst = instinsure
         self.refresh()
 
-    def Merge(self):
+    def Merge(self): 
+        ## good candidate for a decorator?!
         self.Load(merge=1)
 
     def Norm(self):
         """adjust offsets so there are no negative timecodes"""
-        o = self.inst[int(self.insts.curselection()[0])].measures[int(self.bars.curselection()[0])]
+        ## REFACTOR THIS
+        o = self.inst[self.inst.index(int(self.insts.curselection()[0]))][int(self.bars.curselection()[0])]
         off = o.beats[0] - o.offset
-        print off
-        for i in self.inst:
-            for j in i.measures:
-                j.offset += off
-                print j.offset
+        for j in self.inst.values():
+            j.offset += off
         self.refresh()
 
     def New(self):
         """clear all"""
         self.bars.delete(0, END)
         tbTk.Clear(self)
-        del self.meas[:]
+        self.meas = InstManager()
 
     def get_sel_inst(self):
         """find what's selected"""
-        return self.inst[int(self.insts.curselection()[0])].measures
+        return self.inst[self.inst.index(int(self.insts.curselection()[0]))]
 
     def Display_measures(self, sel):
         """show measures"""
@@ -247,17 +245,37 @@ class Application(Frame):
             for i in self.get_sel_inst():
                 self.bars.insert(END, i)
 
-class Instrument:
+
+class InstManager(OrderedDict):
 
     def __init__(self, name='<<null>>'):
-        self.name = str(name)
-        self.measures = []
+        super(InstManager, self).__init__()
+
+    #def __missing__(
+
+    def __setitem__(self, key, value):
+        """ 
+        ensures that measures are put into a list on first entry or replacement
+        """
+        if key in self.keys():
+            #self[key].append(value) # auto-append for new assignments
+            pass
+        super(InstManager, self).__setitem__(key, [value])
 
     def __str__(self):
-        strm = '{}: {}\n'.format(self.__class__.__name__, self.name)
-        for i in self.measures:
-            strm += '\t{}: {}'.format(i.__class__.__name__, i)
+        ## REFACTOR THIS
+        strm = ''
+        for i,j in self:
+            strm += 'Instrument: {}\n'.format(i)
+            for m in j:
+                strm += '\t{}: {}\n'.format(m.__class__.__name__, m)
         return strm
+
+    def index(self, i):
+        """
+        takes an index and returns a key for retrieval
+        """
+        return self.keys()[i]
             
 class Measure:
 

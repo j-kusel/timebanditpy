@@ -105,8 +105,7 @@ def Build_align(app, pop):
     
     pop.title("align")
     menuinst = []
-    for i in app.inst:
-        menuinst.append(i.name)
+    [menuinst.append(i) for i in app.inst]
     
     invarm = StringVar()
     invars = StringVar()
@@ -138,7 +137,7 @@ def Build_align(app, pop):
     pop.slavealign.grid(row=1, column=2, columnspan=2)
     pop.masteralign2.grid(row=1, column=4, columnspan=2)
 
-    for i in app.inst[0].measures:
+    for i in app.inst[app.inst.index(0)]:
         pop.masteralign.insert(END, i.beatstr)
         pop.slavealign.insert(END, i.beatstr)
         pop.masteralign2.insert(END, i.beatstr)
@@ -186,8 +185,8 @@ def al_box_update(app, box, whichinst):
     """takes app, Listbox to update, and instrument name as string"""
     box.delete(0, END)
     for i in app.inst:
-        if i.name == whichinst:
-            for j in i.measures:
+        if i == whichinst:
+            for j in app.inst[i]:
                 box.insert(END, j.beatstr)
 
 def al_final(app, pop):
@@ -198,10 +197,10 @@ def al_final(app, pop):
     if mp=='' or sp=='':
         return
     for i in app.inst:
-        if i.name == mstri:
-            mm = i.measures[int(pop.masteralign.curselection()[0])]
-        if i.name == slvi:
-            sm = i.measures[int(pop.slavealign.curselection()[0])]
+        if i == mstri:
+            mm = app.inst[i][int(pop.masteralign.curselection()[0])]
+        if i == slvi:
+            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
     if mp.lower()=='start':
         mp = 0
     elif mp.lower()=='end':
@@ -233,15 +232,15 @@ def tw_final(app, pop):
         mstri2 = mstri
 
     for i in app.inst:
-        if i.name == mstri:
-            mm = i.measures[int(pop.masteralign.curselection()[0])]
+        if i == mstri:
+            mm = app.inst[i][int(pop.masteralign.curselection()[0])]
             
-        if i.name == slvi:
-            sm = i.measures[int(pop.slavealign.curselection()[0])]
-        if i.name == mstri2:
+        if i == slvi:
+            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
+        if i == mstri2:
         #    try:
             if pop.samemaster.get() == 0:
-                mm2 = i.measures[int(pop.masteralign2.curselection()[0])]
+                mm2 = app.inst[i][int(pop.masteralign2.curselection()[0])]
             else:
                 mm2 = mm
         #    except IndexError:
@@ -279,7 +278,7 @@ def Build_inst(app, pop):
     pop.ilist = Listbox(pop, exportselection=0)
     pop.ilist.grid(row=1, column=0, columnspan=2)
     for i in app.inst:
-        pop.ilist.insert(END, i.name)
+        pop.ilist.insert(END, i)
     pop.idel = Button(pop, text='delete instrument',
                       command=(lambda: app.del_inst(pop, int(pop.ilist.curselection()[0]))))
     pop.idel.grid(row=2, column=1)
