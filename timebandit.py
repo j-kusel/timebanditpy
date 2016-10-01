@@ -34,13 +34,10 @@ class Application(Frame):
 
     def create(self):
         """add measure to database from current input data"""
-        st = self.st.get()
-        e = self.end.get()
-        l = self.long.get()
-        ins = int(self.insts.curselection()[0])
-        print st, e, l
-        if st != '' and e != '' and l != '':
-            self.get_sel_inst().append(Measure(ins, int(st), int(e), float(l)))
+        measure_data = [int(self.insts.curselection()[0]), int(self.st.get()), int(self.end.get()), float(self.long.get())]
+        if '' not in measure_data:
+            self.get_sel_inst().append(Measure(*measure_data))
+        self.refresh()
 
     def refresh(self):
         """rebuild instruments list, beat strings"""
@@ -145,7 +142,7 @@ class Application(Frame):
                 if abs(newdist) > abs(dist):
                     slv.end = ensure
                     slv.begin = insure                
-                slv.beats = slv.Calc(slv.begin, slv.end, slv.timesig)
+                slv.Calc()
                 slv.beatstr = slv.Beat_disp()                
                 break
 
@@ -248,9 +245,7 @@ class Application(Frame):
         self.bars.delete(0, END)
         if len(self.inst) != 0:
             for i in self.get_sel_inst():
-                self.bars.insert(END, i.beatstr)
-        for i in self.inst:
-            print i
+                self.bars.insert(END, i)
 
 class Instrument:
 
@@ -266,36 +261,30 @@ class Instrument:
             
 class Measure:
 
-    def __init__(self, whichinst, s, e, ts, off=0):
-        self.begin = s
-        self.end = e
-        self.timesig = ts
-        self.offset = off
-        self.beats = self.Calc(self.begin, self.end, self.timesig)
+    def __init__(self, whichinst, begin, end, timesig, offset=0):
+        self.begin = begin
+        self.end = end
+        self.timesig = timesig
+        self.offset = offset
+        self.beats = []
+        self.Calc()
         self.beatstr = self.Beat_disp()
-        print whichinst
 
     def __str__(self):
-        return '{0} to {1}; {2}'.format(self.begin, self.end, self.timesig)
+        return '{0} to {1}; {2} beats, {3}ms'.format( \
+            self.begin, self.end, self.timesig, self.beats[-1])
 
     def Shift(self, pivot, beat): #started reworking how offset works
         """change measure offset"""
-        print pivot
-        print beat
         self.offset = pivot - beat
-        print self.offset, "here's the offset"
-        print self.beats, "here's the beats"
         self.beatstr = self.Beat_disp()
 
-    def Calc(self, a, b, size):
-        """returns collection of beat times when given start/end/length"""
-        self.eq = lambda x: (60000/((b-a)/size*x+a))
-        points = []
-        names = [str(self.offset)]
-        points.append(0)
-        for j in range(1, int(size)):
-            points.append(int(integrate.quad(self.eq,0,j)[0]))
-        return points
+    def Calc(self):
+        """returns collection of beat times"""
+        self.eq = lambda x: \
+            (60000/((self.end-self.begin)/self.timesig*x+self.begin))
+        self.beats = [int(integrate.quad(self.eq,0,b)[0]) \
+                      for b in range(0,int(self.timesig))]
 
     def Beat_disp(self):
         """returns beat info as string"""
