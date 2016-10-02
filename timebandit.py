@@ -36,7 +36,7 @@ class Application(Frame):
         """add measure to database from current input data"""
         measure_data = [int(self.insts.curselection()[0]), int(self.st.get()), int(self.end.get()), float(self.long.get())]
         if '' not in measure_data:
-            self.get_sel_inst().append(Measure(*measure_data))
+            self.inst[self.inst.index(measure_data[0])] += Measure(*measure_data)
         self.refresh()
 
     def refresh(self):
@@ -208,7 +208,7 @@ class Application(Frame):
                 newmeas = Measure(name, i[1],i[2],float(i[3]),i[4])
                 ## check if the instrument exists yet
                 if self.inst[i[0]]:
-                    self.inst[i[0]].append(newmeas)
+                    self.inst[i[0]] += newmeas
                 else:
                     self.inst[i[0]] = newmeas
         else:
@@ -245,22 +245,35 @@ class Application(Frame):
             for i in self.get_sel_inst():
                 self.bars.insert(END, i)
 
+class ConcatList(list):
+    """
+    concatenatable list extension to hold measures in InstManager
+    """
+    def __add__(self, value):
+        return type(self)(super(ContactList, self).__add__([value]))
+
+    def __iadd__(self, value):
+        self.append(value)
+        return self
 
 class InstManager(OrderedDict):
-
+    """
+    ordered dictionary for measure storage in ConcatList
+    """
     def __init__(self, name='<<null>>'):
         super(InstManager, self).__init__()
 
-    #def __missing__(
+    def __missing__(self, key):
+        self[key] = ConcatList()
+        return self[key]
 
     def __setitem__(self, key, value):
         """ 
-        ensures that measures are put into a list on first entry or replacement
+        ensures that measures are put into a ConcatList
         """
-        if key in self.keys():
-            #self[key].append(value) # auto-append for new assignments
-            pass
-        super(InstManager, self).__setitem__(key, [value])
+        if not isinstance(key, ConcatList):
+            value = ConcatList(value)
+        super(InstManager, self).__setitem__(key, ConcatList(value))
 
     def __str__(self):
         ## REFACTOR THIS
