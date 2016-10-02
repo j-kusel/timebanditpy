@@ -2,9 +2,8 @@ from scipy import integrate
 from Tkinter import *
 from tkFileDialog import *
 import send2pd as pd
-import tbimg
-import tbFile
-import tbTk
+import tbimg, tbFile, tbTk
+from lib.tbLib import *
 import sys, argparse
 from collections import OrderedDict
 from PIL import Image, ImageTk
@@ -244,101 +243,6 @@ class Application(Frame):
         if len(self.inst) != 0:
             for i in self.get_sel_inst():
                 self.bars.insert(END, i)
-
-class ConcatList(list):
-    """
-    concatenatable list extension to hold measures in InstManager
-    """
-    def __add__(self, value):
-        return type(self)(super(ContactList, self).__add__([value]))
-
-    def __iadd__(self, value):
-        self.append(value)
-        return self
-
-class InstManager(OrderedDict):
-    """
-    ordered dictionary for measure storage in ConcatList
-    """
-    def __init__(self, name='<<null>>'):
-        super(InstManager, self).__init__()
-
-    def __missing__(self, key):
-        self[key] = ConcatList()
-        return self[key]
-
-    def __setitem__(self, key, value):
-        """ 
-        ensures that measures are put into a ConcatList
-        """
-        if not isinstance(key, ConcatList):
-            value = ConcatList(value)
-        super(InstManager, self).__setitem__(key, ConcatList(value))
-
-    def __str__(self):
-        ## REFACTOR THIS
-        strm = ''
-        for i,j in self:
-            strm += 'Instrument: {}\n'.format(i)
-            for m in j:
-                strm += '\t{}: {}\n'.format(m.__class__.__name__, m)
-        return strm
-
-    def index(self, i):
-        """
-        takes an index and returns a key for retrieval
-        """
-        return self.keys()[i]
-            
-class Measure:
-
-    def __init__(self, whichinst, begin, end, timesig, offset=0):
-        self.begin = begin
-        self.end = end
-        self.timesig = timesig
-        self.offset = offset
-        self.beats = []
-        self.Calc()
-        self.beatstr = self.Beat_disp()
-
-    def __str__(self):
-        return '{0} to {1}; {2} beats, {3}ms'.format( \
-            self.begin, self.end, self.timesig, self.beats[-1])
-
-    def Shift(self, pivot, beat): #started reworking how offset works
-        """change measure offset"""
-        self.offset = pivot - beat
-        self.beatstr = self.Beat_disp()
-
-    def Calc(self):
-        """returns collection of beat times"""
-        self.eq = lambda x: \
-            (60000/((self.end-self.begin)/self.timesig*x+self.begin))
-        self.beats = [int(integrate.quad(self.eq,0,b)[0]) \
-                      for b in range(0,int(self.timesig))]
-
-    def Beat_disp(self):
-        """returns beat info as string"""
-        return ' '.join(str(x+self.offset) for x in self.beats)
-
-    def Eval(self, beat, start=0):
-        return int(integrate.quad(self.eq,start,beat)[0])
-
-class Rhythm:
-
-    def __init__(self, parent): #initialize with tie to Measure
-        self.peq = parent.eq
-        self.transients = []
-
-    def Add_tr(self, note):
-        self.transients.append(int(integrate.quad(self.peq,0,note)))
-        self.Update_tr()
-
-    def Del_tr(self, which):
-        pass
-
-    def Update_tr(self):
-        pass
 
 # TESTING
 def testsuite():
