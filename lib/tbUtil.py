@@ -4,7 +4,7 @@ utility management for timebandit
 
 from argparse import ArgumentParser
 import AppManager
-from tb_Settings import *
+from settings import *
 
 class tbParser(object):
     """

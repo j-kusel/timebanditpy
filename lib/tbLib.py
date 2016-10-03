@@ -10,6 +10,9 @@ class InstManager(OrderedDict):
         super(InstManager, self).__init__()
 
     def __missing__(self, key):
+        """
+        initialize a key as a ConcatList no matter what
+        """
         self[key] = ConcatList()
         return self[key]
 
@@ -17,18 +20,20 @@ class InstManager(OrderedDict):
         """
         ensures that measures are put into a ConcatList
         """
-        if not isinstance(key, ConcatList):
+        if not isinstance(value, ConcatList):
             value = ConcatList(value)
-        super(InstManager, self).__setitem__(key, ConcatList(value))
+        return super(InstManager, self).__setitem__(key, value)
 
     def __str__(self):
-        ## REFACTOR THIS
-        strm = ''
-        for i,j in self:
-            strm += 'Instrument: {}\n'.format(i)
-            for m in j:
-                strm += '\t{}: {}\n'.format(m.__class__.__name__, m)
-        return strm
+        """
+        print the InstManager as a series of keys and their Measures
+        """
+        strm = []
+        for i in self:
+            strm.append('Instrument: {}'.format(i))
+            for m in self[i]:
+                strm.append('\t{}: {}'.format(m.__class__.__name__, m))
+        return '/n'.join(strm)
 
     def index(self, i):
         """
@@ -36,7 +41,13 @@ class InstManager(OrderedDict):
         """
         return self.keys()[i]
 
+    #def add_measure(self, inst, meas):
+    #    self[inst] += meas
+
 class Measure:
+    """
+    timebandit Measure class to handle storage/location/time computation
+    """
 
     def __init__(self, whichinst, begin, end, timesig, offset=0):
         self.begin = begin
@@ -61,7 +72,7 @@ class Measure:
         self.eq = lambda x: \
             (60000/((self.end-self.begin)/self.timesig*x+self.begin))
         self.beats = [int(integrate.quad(self.eq,0,b)[0]) \
-                      for b in range(0,int(self.timesig))]
+                      for b in range(0,int(self.timesig+1))]
 
     def Beat_disp(self):
         """returns beat info as string"""

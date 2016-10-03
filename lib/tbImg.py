@@ -99,13 +99,15 @@ class Bar:
         """
         takes a Measure object from timebandit.py
         """
+        self.begin = measure.begin
+        self.end = measure.end
         self.eq = measure.eq
         self.timesig = measure.timesig
         self.offset = measure.offset
         self.breadth = [0, paperxy[0]]
         self.tall = paperxy[1]
         self.ylines = []
-        self.txt = str("(%d>%d)/%.2f" % (start, end, self.timesig))
+        self.txt = str("(%d>%d)/%.2f" % (self.begin, self.end, self.timesig))
         self.packbar()
 
     def packbar(self):

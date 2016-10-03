@@ -2,7 +2,7 @@ from scipy import integrate
 from Tkinter import *
 from tkFileDialog import *
 import send2pd as pd
-import tbimg, tbFile, tbTk
+from lib import tbImg, tbFile, tbTk
 from lib.tbLib import *
 import sys, argparse
 from collections import OrderedDict
@@ -42,9 +42,8 @@ class Application(Frame):
         """rebuild instruments list, beat strings"""
         self.insts.delete(0, END)
         for i in self.inst:
-            j = self.inst[i]
             self.insts.insert(END, i)
-            for m in j:
+            for m in self.inst[i]:
                 m.beatstr = m.Beat_disp()
         self.bars.delete(0,END)
 
@@ -62,13 +61,13 @@ class Application(Frame):
         
     def imggen(self):
         """plot image"""
-        tbimg.reset()
+        tbImg.reset()
         o = int(float(self.imgpop.opslider.get())/100*255)
-        tbimg.setopacity(o)
-        tbimg.setbpi(int(self.imgpop.bpislider.get()))
+        tbImg.setopacity(o)
+        tbImg.setbpi(int(self.imgpop.bpislider.get()))
         for i in self.inst:
-            tbimg.addinst(self.inst[i])
-        tbimg.plot()
+            tbImg.addinst(self.inst[i])
+        tbImg.plot()
         self.imgpop.destroy()
 
     def Align_popup(self):
@@ -200,16 +199,13 @@ class Application(Frame):
         ld = tbFile.load()
         if (ld):
             if merge==0:
-                self.inst = OrderedDict()
+                self.inst = InstManager()
                 self.insts.delete(0, END)
                 self.bars.delete(0, END)
             for i in ld:
-                newmeas = Measure(name, i[1],i[2],float(i[3]),i[4])
-                ## check if the instrument exists yet
-                if self.inst[i[0]]:
-                    self.inst[i[0]] += newmeas
-                else:
-                    self.inst[i[0]] = newmeas
+                print 'ld=', i
+                newmeas = Measure(i[0], i[1],i[2],float(i[3]),i[4])
+                self.inst[i[0]] += newmeas
         else:
             self.inst = instinsure
         self.refresh()
@@ -273,7 +269,7 @@ if __name__ == "__main__":
         #testsuite()
     else:
         try:
-            import tbUtil
+            import lib.tbUtil as tbUtil
             parser = tbUtil.tbParser(sys.argv)
             command, flags = parser.parse()
             print flags
