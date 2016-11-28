@@ -76,7 +76,7 @@ class Measure:
 
     def Beat_disp(self):
         """returns beat info as string"""
-        return ' '.join(str(x+self.offset) for x in self.beats)
+        return ' '.join(int(str(x+self.offset) for x in self.beats))
 
     def Eval(self, beat, start=0):
         return int(integrate.quad(self.eq,start,beat)[0])

@@ -5,6 +5,8 @@ utility management for timebandit
 from argparse import ArgumentParser
 import AppManager
 from settings import *
+import inspect
+import apps
 
 class tbParser(object):
     """
@@ -19,14 +21,13 @@ class tbParser(object):
         build/return a global argument parser for timebandit
         """
         parser = ArgumentParser()
-
+        help_list = '\n'.join([getattr(apps, a).__doc__ for a in apps.__all__])
         parser.add_argument(
             'command',
             type=str,
             action='store',
-            help=(
-                "initialize a timebandit shell for headless use"
-            ),
+            choices=apps.__all__,
+            help=help_list,
         )
 
         parser.add_argument(

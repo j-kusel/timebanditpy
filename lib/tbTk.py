@@ -178,8 +178,13 @@ def Build_align(app, pop):
     pop.che = IntVar()
     pop.chstart = Checkbutton(pop, text="anchor start", variable=pop.chs, onvalue=1, offvalue=0)
     pop.chend = Checkbutton(pop, text="anchor end", variable=pop.che, onvalue=2, offvalue=0)
+    pop.statlab = Button(pop, text="global pt", command= (lambda: basic_align(app,pop)))
+    pop.static = Entry(pop)
+
     pop.chstart.grid(row=0, column=6)
     pop.chend.grid(row=1, column=6)
+    pop.statlab.grid(row=2, column=6)
+    pop.static.grid(row=3, column=6)
 
 def al_box_update(app, box, whichinst):
     """takes app, Listbox to update, and instrument name as string"""
@@ -263,6 +268,14 @@ def pa_final(app, pop):
                     pop.pivotmaster.get(), #str
                     pop.pivotslave.get(), #str
 		    pop.tweakend.get()) #str
+
+def basic_align(app, pop):
+    mp = float(pop.static.get())
+    for i in app.inst:
+        if i == pop.slavedrop.cget("text"):
+            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
+    sp = float(pop.pivotslave.get())
+    app.Final_align(0, sm, mp, sp)
 
 def Build_inst(app, pop):
     """Takes main application, Toplevel() window as arguments"""

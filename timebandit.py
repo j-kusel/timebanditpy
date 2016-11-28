@@ -1,10 +1,11 @@
+import os, sys, argparse
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from scipy import integrate
 from Tkinter import *
 from tkFileDialog import *
 import send2pd as pd
 from lib import tbImg, tbFile, tbTk
 from lib.tbLib import *
-import sys, argparse
 from collections import OrderedDict
 from PIL import Image, ImageTk
 
@@ -75,9 +76,13 @@ class Application(Frame):
         self.alignpop = Toplevel()
         tbTk.Build_align(self, self.alignpop)
 
+
     def Final_align(self, mm, sm, mp, sp):
         """perform alignment calculations, close popup, refresh"""
-        sm.Shift(mm.Eval(mp)+mm.offset,sm.Eval(sp))
+        if mm:
+            sm.Shift(mm.Eval(mp)+mm.offset,sm.Eval(sp))
+        else:
+            sm.Shift(mp,sm.Eval(sp))
         self.alignpop.destroy()
         self.refresh()
 
@@ -268,12 +273,13 @@ if __name__ == "__main__":
         print "tests not available in this release"
         #testsuite()
     else:
-        try:
-            import lib.tbUtil as tbUtil
-            parser = tbUtil.tbParser(sys.argv)
-            command, flags = parser.parse()
-            print flags
-            tbUtil.AppExec(command, flags)
-        except ImportError:
-            raise ImportError("tbParser import failed!")
+        #try:
+        sys.path.append('/home/pi/python') #FIX THIS
+        import lib.tbUtil as tbUtil
+        parser = tbUtil.tbParser(sys.argv)
+        command, flags = parser.parse()
+        print flags
+        tbUtil.AppExec(command, flags)
+        #except ImportError:
+        #    raise ImportError("tbParser import failed!")
             
