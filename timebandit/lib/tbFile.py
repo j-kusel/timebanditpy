@@ -10,9 +10,9 @@ def save(theinsts):
     pak = []
     schstr = []
     for i in theinsts:
-        for j in i.measures:
+        for j in theinsts[i]:
             del schstr[:]
-            schstr.append(i.name)
+            schstr.append(i)
             schstr.append(str(j.begin))
             schstr.append(str(j.end))
             schstr.append(str(j.timesig))
@@ -24,15 +24,13 @@ def save(theinsts):
 def load():
     """return 2d array of for measure initialization."""
     thefile = open(askopenfilename(), "r")
-    lines = thefile.readlines()
-    thefile.close()
     finallines = []
-    for l in lines:
+    for l in thefile:
         fl = l.split(' ')
         if (len(fl) % 5 == 0):
             finallines.append([fl[0],int(fl[1]),int(fl[2]),float(fl[3]),int(fl[4])])
         else:
             print("ERROR: file corruption")
             return 0
+    thefile.close()
     return finallines
-        

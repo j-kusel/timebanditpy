@@ -1,10 +1,12 @@
+import os, sys, argparse
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from scipy import integrate
 from Tkinter import *
 from tkFileDialog import *
 import send2pd as pd
-import tbimg
-import tbFile
-import tbTk
+from lib import tbImg, tbFile, tbTk
+from lib.tbLib import *
+from collections import OrderedDict
 from PIL import Image, ImageTk
 
 class Application(Frame):
@@ -14,39 +16,36 @@ class Application(Frame):
         self.grid()
         tbTk.Build_core(self, master)
         
-        self.inst = []
+        self.inst = InstManager()
         self.meas = []
 
     def create_inst(self, pop):
         """add a new instrument"""
         name = str(pop.iname.get())
-        self.inst.append(Instrument(name))
+        self.inst[name] = []
         pop.ilist.insert(END, name)
         self.refresh()
 
     def del_inst(self, popup, delind):
         """remove an instrument"""
-        self.inst.pop(delind)
+        del self.inst[self.inst.index(delind)]
         popup.ilist.delete(delind)
         self.refresh()
 
     def create(self):
         """add measure to database from current input data"""
-        st = self.st.get()
-        e = self.end.get()
-        l = self.long.get()
-        ins = int(self.insts.curselection()[0])
-        print st, e, l
-        if st != '' and e != '' and l != '':
-            self.get_sel_inst().append(Measure(ins, int(st), int(e), float(l)))
+        measure_data = [int(self.insts.curselection()[0]), int(self.st.get()), int(self.end.get()), float(self.long.get())]
+        if '' not in measure_data:
+            self.inst[self.inst.index(measure_data[0])] += Measure(*measure_data)
+        self.refresh()
 
     def refresh(self):
         """rebuild instruments list, beat strings"""
         self.insts.delete(0, END)
         for i in self.inst:
-            self.insts.insert(END, i.name)
-            for j in i.measures:
-                j.beatstr = j.Beat_disp()
+            self.insts.insert(END, i)
+            for m in self.inst[i]:
+                m.beatstr = m.Beat_disp()
         self.bars.delete(0,END)
 
     def pdplay(self):
@@ -63,16 +62,13 @@ class Application(Frame):
         
     def imggen(self):
         """plot image"""
-        tbimg.reset()
+        tbImg.reset()
         o = int(float(self.imgpop.opslider.get())/100*255)
-        tbimg.setopacity(o)
-        tbimg.setbpi(int(self.imgpop.bpislider.get()))
+        tbImg.setopacity(o)
+        tbImg.setbpi(int(self.imgpop.bpislider.get()))
         for i in self.inst:
-            thebars = []
-            for j in i.measures:
-                thebars.append([i.name, j.eq, j.timesig, j.offset, j.begin, j.end])
-            tbimg.addinst(thebars)
-        tbimg.plot()
+            tbImg.addinst(self.inst[i])
+        tbImg.plot()
         self.imgpop.destroy()
 
     def Align_popup(self):
@@ -80,9 +76,13 @@ class Application(Frame):
         self.alignpop = Toplevel()
         tbTk.Build_align(self, self.alignpop)
 
+
     def Final_align(self, mm, sm, mp, sp):
         """perform alignment calculations, close popup, refresh"""
-        sm.Shift(mm.Eval(mp)+mm.offset,sm.Eval(sp))
+        if mm:
+            sm.Shift(mm.Eval(mp)+mm.offset,sm.Eval(sp))
+        else:
+            sm.Shift(mp,sm.Eval(sp))
         self.alignpop.destroy()
         self.refresh()
 
@@ -143,7 +143,7 @@ class Application(Frame):
                 if abs(newdist) > abs(dist):
                     slv.end = ensure
                     slv.begin = insure                
-                slv.beats = slv.Calc(slv.begin, slv.end, slv.timesig)
+                slv.Calc()
                 slv.beatstr = slv.Beat_disp()                
                 break
 
@@ -154,15 +154,13 @@ class Application(Frame):
     #############################
 
     def Final_pad(self, mstri, slvi, mstrm, slvm, pmstr, pslv, pme):
-        mi = Instrument()
-        si = Instrument()
         for i in self.inst:
-            if i.name == mstri:
-                mi = i
-            if i.name == slvi:
-                si = i
-        slv = si.measures[slvm]
-        mstr = mi.measures[mstrm]
+            if i == mstri:
+                mi = self.inst[i]
+            if i == slvi:
+                si = self.inst[i]
+        slv = si[slvm]
+        mstr = mi[mstrm]
         pm = int(pmstr)
         ps = int(pslv)
         if pme=='' or pme=='end':
@@ -192,6 +190,7 @@ class Application(Frame):
             else:
                 slave[2]-=.25
             print "at try %d we are %d away" % (i, dist)
+        self.refresh()
 
     def Inst_manager(self):
         self.instpop = Toplevel()
@@ -205,116 +204,84 @@ class Application(Frame):
         ld = tbFile.load()
         if (ld):
             if merge==0:
-                del self.inst[:]
-                app.insts.delete(0, END)
-                app.bars.delete(0, END)
+                self.inst = InstManager()
+                self.insts.delete(0, END)
+                self.bars.delete(0, END)
             for i in ld:
-                if not (i[0] in [x.name for x in self.inst]):
-                    self.inst.append(Instrument(i[0]))
-                    self.inst[-1].measures.append(Measure(i[0], i[1],i[2],float(i[3]),i[4]))
+                print 'ld=', i
+                newmeas = Measure(i[0], i[1],i[2],float(i[3]),i[4])
+                self.inst[i[0]] += newmeas
         else:
             self.inst = instinsure
         self.refresh()
 
-    def Merge(self):
+    def Merge(self): 
+        ## good candidate for a decorator?!
         self.Load(merge=1)
 
     def Norm(self):
         """adjust offsets so there are no negative timecodes"""
-        o = self.inst[int(self.insts.curselection()[0])].measures[int(self.bars.curselection()[0])]
+        ## REFACTOR THIS
+        o = self.inst[self.inst.index(int(self.insts.curselection()[0]))][int(self.bars.curselection()[0])]
         off = o.beats[0] - o.offset
-        print off
         for i in self.inst:
-            for j in i.measures:
-                j.offset += off
-                print j.offset
+            for m in self.inst[i]:
+                m.offset += off
         self.refresh()
 
     def New(self):
         """clear all"""
         self.bars.delete(0, END)
         tbTk.Clear(self)
-        del self.meas[:]
+        self.meas = InstManager()
 
     def get_sel_inst(self):
         """find what's selected"""
-        return self.inst[int(self.insts.curselection()[0])].measures
+        return self.inst[self.inst.index(int(self.insts.curselection()[0]))]
 
     def Display_measures(self, sel):
         """show measures"""
         self.bars.delete(0, END)
         if len(self.inst) != 0:
             for i in self.get_sel_inst():
-                app.bars.insert(END, i.beatstr)
+                self.bars.insert(END, i)
 
-class Instrument:
+# TESTING
+def testsuite():
+    inst = []
+    for i in range(0,3):
+        inst.append(Instrument(name=str(i)))
+        for i in range(0,3):
+            inst[-1].measures.append(Measure(inst[-1],60,120,5))
 
-    def __init__(self, name='<<null>>'):
-        self.name = str(name)
-        self.measures = []
-        if self.name != '<<null>>':
-            app.insts.insert(END, self.name)
-            
-class Measure:
-
-    def __init__(self, whichinst, s, e, ts, off=0):
-        self.begin = s
-        self.end = e
-        self.timesig = ts
-        self.offset = off
-        self.beats = self.Calc(self.begin, self.end, self.timesig)
-        self.beatstr = self.Beat_disp()
-        app.bars.insert(END, self.beatstr)
-        tbTk.Clear(app)
-
-    def Shift(self, pivot, beat): #started reworking how offset works
-        """change measure offset"""
-        print pivot
-        print beat
-        self.offset = pivot - beat
-        print self.offset, "here's the offset"
-        print self.beats, "here's the beats"
-        self.beatstr = self.Beat_disp()
-        app.refresh()
-
-    def Calc(self, a, b, size):
-        """returns collection of beat times when given start/end/length"""
-        self.eq = lambda x: (60000/((b-a)/size*x+a))
-        points = []
-        names = [str(self.offset)]
-        points.append(0)
-        for j in range(1, int(size)):
-            points.append(int(integrate.quad(self.eq,0,j)[0]))
-        return points
-
-    def Beat_disp(self):
-        """returns beat info as string"""
-        return ' '.join(str(x+self.offset) for x in self.beats)
-
-    def Eval(self, beat, start=0):
-        return int(integrate.quad(self.eq,start,beat)[0])
-
-class Rhythm:
-
-    def __init__(self, parent): #initialize with tie to Measure
-        self.peq = parent.eq
-        self.transients = []
-
-    def Add_tr(self, note):
-        self.transients.append(int(integrate.quad(self.peq,0,note)))
-        self.Update_tr()
-
-    def Del_tr(self, which):
-        pass
-
-    def Update_tr(self):
-        pass
+    for i in inst:
+        print i
 
 # MAIN
-    
-root = Tk()
-root.title("timebandit")
-#root.geometry("1024x768")
+def main():    
+    root = Tk()
+    root.title("timebandit")
+    #root.geometry("1024x768")
 
-app = Application(root)
-root.mainloop()
+    app = Application(root)
+    root.mainloop()    
+
+def package_entry():
+    if len(sys.argv) == 1:
+        print 'noargs'
+        main()
+    elif sys.argv[1] == 'test':
+        print "tests not available in this release"
+        #testsuite()
+    else:
+        try:
+            import lib.tbUtil as tbUtil
+            parser = tbUtil.tbParser(sys.argv)
+            command, flags = parser.parse()
+            tbUtil.AppExec(command, flags)
+        except ImportError:
+            raise ImportError("tbParser import failed!")
+            
+if __name__ == "__main__":
+    main()
+

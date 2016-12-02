@@ -1,5 +1,4 @@
 *.pyc
 *.tb
 *.png
-scipy
-numpy
+*.swp

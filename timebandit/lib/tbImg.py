@@ -84,25 +84,30 @@ def setopacity(op=0):
     del opacity[:]
     opacity.append(op)
 
-def addinst(i):
+def addinst(bars):
     """list of bars containing name, equation, timesig, offset"""
     insts.append([]) #add list of bars
-    for b in i:
-        insts[-1].append(Bar(b[1],b[2],b[3],b[0],b[4],b[5]))
+    for b in bars:
+        insts[-1].append(Bar(b))
     #print insts[name].key()
     
 def drawbar(thebar, yoff):
     pass
     
 class Bar:
-    def __init__(self, equation, beats, ofst, name, start, end):
-        self.eq = equation
-        self.timesig = beats
-        self.offset = int(ofst)
+    def __init__(self, measure):
+        """
+        takes a Measure object from timebandit.py
+        """
+        self.begin = measure.begin
+        self.end = measure.end
+        self.eq = measure.eq
+        self.timesig = measure.timesig
+        self.offset = measure.offset
         self.breadth = [0, paperxy[0]]
         self.tall = paperxy[1]
         self.ylines = []
-        self.txt = str("(%d>%d)/%.2f" % (start, end, self.timesig))
+        self.txt = str("(%d>%d)/%.2f" % (self.begin, self.end, self.timesig))
         self.packbar()
 
     def packbar(self):
