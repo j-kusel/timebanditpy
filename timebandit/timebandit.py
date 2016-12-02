@@ -224,8 +224,9 @@ class Application(Frame):
         ## REFACTOR THIS
         o = self.inst[self.inst.index(int(self.insts.curselection()[0]))][int(self.bars.curselection()[0])]
         off = o.beats[0] - o.offset
-        for j in self.inst.values():
-            j.offset += off
+        for i in self.inst:
+            for m in self.inst[i]:
+                m.offset += off
         self.refresh()
 
     def New(self):
@@ -263,9 +264,9 @@ def main():
     #root.geometry("1024x768")
 
     app = Application(root)
-    root.mainloop()
+    root.mainloop()    
 
-if __name__ == "__main__":
+def package_entry():
     if len(sys.argv) == 1:
         print 'noargs'
         main()
@@ -273,13 +274,14 @@ if __name__ == "__main__":
         print "tests not available in this release"
         #testsuite()
     else:
-        #try:
-        sys.path.append('/home/pi/python') #FIX THIS
-        import lib.tbUtil as tbUtil
-        parser = tbUtil.tbParser(sys.argv)
-        command, flags = parser.parse()
-        print flags
-        tbUtil.AppExec(command, flags)
-        #except ImportError:
-        #    raise ImportError("tbParser import failed!")
+        try:
+            import lib.tbUtil as tbUtil
+            parser = tbUtil.tbParser(sys.argv)
+            command, flags = parser.parse()
+            tbUtil.AppExec(command, flags)
+        except ImportError:
+            raise ImportError("tbParser import failed!")
             
+if __name__ == "__main__":
+    main()
+

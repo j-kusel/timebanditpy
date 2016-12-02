@@ -21,7 +21,7 @@ setup(name='timebandit',
     author='Jordan Kusel',
     author_email='jordankusel@my.unt.edu',
     license='GNU GPLv3+',
-    packages=['timebandit.apps', 'timebandit.lib'],
+    packages=['timebandit', 'timebandit.apps', 'timebandit.lib'],
     install_requires=[
         'numpy',
         'scipy',
@@ -30,6 +30,6 @@ setup(name='timebandit',
     test_suite='nose.collector',
     tests_require=['nose'],
     entry_points = {
-        'console_scripts': ['timebandit=timebandit:main'],
+        'console_scripts': ['timebandit=timebandit.timebandit:package_entry'],
     },
     zip_safe=False)
