@@ -5,7 +5,7 @@ from Tkinter import *
 from tkFileDialog import *
 import send2pd as pd
 from lib import tbImg, tbFile, tbTk
-from lib.tbLib import *
+from lib.tbLib import InstManager, Measure, Rhythm
 from collections import OrderedDict
 from PIL import Image, ImageTk
 
