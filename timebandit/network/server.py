@@ -8,5 +8,5 @@ class Server(object):
         self.socket_list = sockets
         self.port = port
         
-    def send(self, ip, message):
-        os.system("echo '{} {}' | pdsend {}".format(str(ip), str(message), str(self.port)))
+    def send(self, message='0', ip='localhost'):
+        os.system("echo '{}' | pdsend {}".format(str(message), str(self.port)))

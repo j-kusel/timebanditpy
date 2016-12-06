@@ -1,11 +1,10 @@
-import os, sys, argparse
+import argparse, os, sys, traceback
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from scipy import integrate
 from Tkinter import *
 from tkFileDialog import *
-import send2pd as pd
 from lib import tbImg, tbFile, tbTk
-from lib.tbLib import InstManager, Measure, Rhythm
+from lib.tbScheme import Scheme
 from collections import OrderedDict
 from PIL import Image, ImageTk
 
@@ -16,46 +15,43 @@ class Application(Frame):
         self.grid()
         tbTk.Build_core(self, master)
         
+        self.scheme = Scheme()
+        self.server = ''
+    def New(self):
+        """clear all"""
+        self.bars.delete(0, END)
+        tbTk.Clear(self)
         self.inst = InstManager()
-        self.meas = []
 
-    def create_inst(self, pop):
-        """add a new instrument"""
-        name = str(pop.iname.get())
-        self.inst[name] = []
-        pop.ilist.insert(END, name)
-        self.refresh()
-
-    def del_inst(self, popup, delind):
-        """remove an instrument"""
-        del self.inst[self.inst.index(delind)]
-        popup.ilist.delete(delind)
-        self.refresh()
-
-    def create(self):
-        """add measure to database from current input data"""
-        measure_data = [int(self.insts.curselection()[0]), int(self.st.get()), int(self.end.get()), float(self.long.get())]
-        if '' not in measure_data:
-            self.inst[self.inst.index(measure_data[0])] += Measure(*measure_data)
-        self.refresh()
+    def scheme_dispatcher(self, command, **kwargs):
+        try:
+            getattr(self.scheme, command)(**kwargs)
+            self.refresh()
+        except:
+            traceback.print_exc()
 
     def refresh(self):
         """rebuild instruments list, beat strings"""
         self.insts.delete(0, END)
-        for i in self.inst:
+        for i in self.scheme.inst:
             self.insts.insert(END, i)
-            for m in self.inst[i]:
+            for m in self.scheme.inst[i]:
                 m.beatstr = m.Beat_disp()
         self.bars.delete(0,END)
 
-    def pdplay(self):
-        """send measure information to pure data"""
-        for i in range(len(self.meas)):
-            print self.meas[i].beatstr
-            pd.sendout(i, self.meas[i].beatstr)
-        pd.sendout(99, 1)
+    def Build_server(self):
+        """open a socket to remote pure data clients"""
+        from network.server import Server
+        self.server = Server()
+        self.server.send(message='test')
 
-    def imgeval(self):
+    def pdplay(self):
+        if self.server:      
+            for i in self.scheme.inst:
+                part = ' '.join([j.beatstr for j in self.scheme.inst[i]])
+                self.server.send(message=part)
+
+    def Image_popup(self):
         """open image popup"""
         self.imgpop = Toplevel()
         tbTk.Build_img(self, self.imgpop) #main application, top window
@@ -75,7 +71,6 @@ class Application(Frame):
         """build the alignment window"""
         self.alignpop = Toplevel()
         tbTk.Build_align(self, self.alignpop)
-
 
     def Final_align(self, mm, sm, mp, sp):
         """perform alignment calculations, close popup, refresh"""
@@ -229,11 +224,6 @@ class Application(Frame):
                 m.offset += off
         self.refresh()
 
-    def New(self):
-        """clear all"""
-        self.bars.delete(0, END)
-        tbTk.Clear(self)
-        self.meas = InstManager()
 
     def get_sel_inst(self):
         """find what's selected"""

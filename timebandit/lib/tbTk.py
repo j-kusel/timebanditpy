@@ -70,7 +70,7 @@ def Build_core(app, master):
     app.playbut = Button(app, text='play!', command=app.pdplay)
     app.playbut.grid(row=2, column=2)
 
-    app.printbut = Button(app, text='print...', command=app.imgeval)
+    app.printbut = Button(app, text='print...', command=app.Image_popup)
     app.printbut.grid(row=2, column=3)
 
     app.savebut = Button(app, text='save...', command=app.Save)
@@ -105,7 +105,7 @@ def Build_align(app, pop):
     
     pop.title("align")
     menuinst = []
-    [menuinst.append(i) for i in app.inst]
+    [menuinst.append(i) for i in app.scheme.inst]
     
     invarm = StringVar()
     invars = StringVar()
@@ -286,11 +286,11 @@ def Build_inst(app, pop):
     pop.iname = Entry(pop)
     pop.iname.grid(row=0, column=1)
     pop.igo = Button(pop, text='add instrument',
-                     command=(lambda: app.create_inst(pop)))
+                     command=(lambda: app.scheme_dispatcher('create_inst', name=str(pop.iname.get()))))
     pop.igo.grid(row=0, column=2)
     pop.ilist = Listbox(pop, exportselection=0)
     pop.ilist.grid(row=1, column=0, columnspan=2)
-    for i in app.inst:
+    for i in app.scheme.inst:
         pop.ilist.insert(END, i)
     pop.idel = Button(pop, text='delete instrument',
                       command=(lambda: app.del_inst(pop, int(pop.ilist.curselection()[0]))))
