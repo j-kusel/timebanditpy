@@ -113,54 +113,54 @@ def Build_align(app, pop):
     invars.set(menuinst[0])
 
     ## drop menus
-    pop.masterdrop = OptionMenu(pop, invarm, *(menuinst),
-                                command = (lambda invarm: al_box_update(app, pop.masteralign, invarm)))
-    pop.masterdrop2 = OptionMenu(pop, invarm, *(menuinst),
-                                command = (lambda invarm2: al_box_update(app, pop.masteralign2, invarm2)))
-    pop.slavedrop = OptionMenu(pop, invars, *(menuinst),
-                                command = (lambda invars: al_box_update(app, pop.slavealign, invars)))
+    pop.primarydrop = OptionMenu(pop, invarm, *(menuinst),
+                                command = (lambda invarm: al_box_update(app, pop.primaryalign, invarm)))
+    pop.secondarydrop = OptionMenu(pop, invarm, *(menuinst),
+                                command = (lambda invarm2: al_box_update(app, pop.secondarydrop, invarm2)))
+    pop.replicadrop = OptionMenu(pop, invars, *(menuinst),
+                                command = (lambda invars: al_box_update(app, pop.replicaalign, invars)))
 
-    pop.samemaster = IntVar()
-    pop.same = Checkbutton(pop, text="same master", variable=pop.samemaster, onvalue=1, offvalue=0)
+    pop.sameprimary = IntVar()
+    pop.same = Checkbutton(pop, text="same primary", variable=pop.sameprimary, onvalue=1, offvalue=0)
 
-    pop.masterdrop.grid(row = 0, column=0, columnspan=2)
+    pop.primarydrop.grid(row = 0, column=0, columnspan=2)
     pop.same.grid(row=0, column=5, columnspan=1)
-    pop.masterdrop2.grid(row = 0, column=4, columnspan=1)
-    pop.slavedrop.grid(row=0, column=2, columnspan=2)
+    pop.secondarydrop.grid(row = 0, column=4, columnspan=1)
+    pop.replicadrop.grid(row=0, column=2, columnspan=2)
 
     ## listboxes
-    pop.masteralign = Listbox(pop, exportselection=0)
-    pop.slavealign = Listbox(pop, exportselection=0)
-    pop.masteralign2 = Listbox(pop, exportselection=0)
+    pop.primaryalign = Listbox(pop, exportselection=0)
+    pop.replicaalign = Listbox(pop, exportselection=0)
+    pop.secondaryalign = Listbox(pop, exportselection=0)
 
-    pop.masteralign.grid(row=1, column=0, columnspan=2)
-    pop.slavealign.grid(row=1, column=2, columnspan=2)
-    pop.masteralign2.grid(row=1, column=4, columnspan=2)
+    pop.primaryalign.grid(row=1, column=0, columnspan=2)
+    pop.replicaalign.grid(row=1, column=2, columnspan=2)
+    pop.secondaryalign.grid(row=1, column=4, columnspan=2)
 
     for i in app.inst[app.inst.index(0)]:
-        pop.masteralign.insert(END, i.beatstr)
-        pop.slavealign.insert(END, i.beatstr)
-        pop.masteralign2.insert(END, i.beatstr)
+        pop.primaryalign.insert(END, i.beatstr)
+        pop.replicaalign.insert(END, i.beatstr)
+        pop.secondaryalign.insert(END, i.beatstr)
 
-    pop.pivotmaster = Entry(pop)
-    pop.pivotslave = Entry(pop)
-    pop.pivotmaster2 = Entry(pop)
-    pop.pivotslave2 = Entry(pop)
+    pop.primarypivot = Entry(pop)
+    pop.replicapivot = Entry(pop)
+    pop.primarypivot2 = Entry(pop)
+    pop.replicapivot2 = Entry(pop)
 
-    pop.pivotmaster.grid(row=2, column=1)
-    pop.pivotslave.grid(row=2, column=3)
-    pop.pivotmaster2.grid(row=2, column=5)
-    pop.pivotslave2.grid(row=3, column=3)
+    pop.primarypivot.grid(row=2, column=1)
+    pop.replicapivot.grid(row=2, column=3)
+    pop.primarypivot2.grid(row=2, column=5)
+    pop.replicapivot2.grid(row=3, column=3)
 
-    pop.pivotm = Label(pop, text="m pivot beat")
-    pop.pivots = Label(pop, text="s pivot beat")
-    pop.pivotm2 = Label(pop, text="m2 anchor")
-    pop.pivots2 = Label(pop, text="slave endpoint")
+    pop.pivotp = Label(pop, text="p pivot beat")
+    pop.pivotr = Label(pop, text="r pivot beat")
+    pop.pivotp2 = Label(pop, text="p2 anchor")
+    pop.pivotr2 = Label(pop, text="replica endpoint")
 
-    pop.pivotm.grid(row=2, column=0)
-    pop.pivots.grid(row=2, column=2)
-    pop.pivotm2.grid(row=2, column=4)
-    pop.pivots2.grid(row=3, column=2)
+    pop.pivotp.grid(row=2, column=0)
+    pop.pivotr.grid(row=2, column=2)
+    pop.pivotp2.grid(row=2, column=4)
+    pop.pivotr2.grid(row=3, column=2)
    
     pop.goalign = Button(pop, text='align!', command= (lambda: al_final(app, pop)))
     pop.goalign.grid(row=1, column=7)
@@ -195,46 +195,46 @@ def al_box_update(app, box, whichinst):
                 box.insert(END, j.beatstr)
 
 def al_final(app, pop):
-    mstri = pop.masterdrop.cget("text")
-    slvi = pop.slavedrop.cget("text")
-    mp = pop.pivotmaster.get()
-    sp = pop.pivotslave.get()
-    if mp=='' or sp=='':
+    try:
+        pm = app.scheme.inst[pop.primarydrop.cget("text")][pop.primaryalign.curselection()[0]]
+        rm = app.scheme.inst[pop.replicadrop.cget("text")][pop.primaryalign.curselection()[0]]
+    except IndexError:
+        print 'instrument/measure selections incorrect'
+    ppt = pop.primarypivot.get()
+    rpt = pop.replicapivot.get()
+    if ppt=='' or rpt=='':
         return
-    for i in app.inst:
-        if i == mstri:
-            mm = app.inst[i][int(pop.masteralign.curselection()[0])]
-        if i == slvi:
-            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
-    if mp.lower()=='start':
-        mp = 0
-    elif mp.lower()=='end':
-        mp = mm.timesig
-    else:
-        mp = int(mp)
-
-    if sp.lower()=='start':
+    if ppt.lower()=='start':
+        ppt = 0
+    elif ppt.lower()=='end':
+        ppt = pm.timesig
+    if rpt.lower()=='start':
         sp = 0
-    elif sp.lower()=='end':
-        sp = sm.timesig
-    else:
-        sp = int(sp)
+    elif rpt.lower()=='end':
+        sp = rm.timesig
+
+    try:
+        ppt = int(ppt)
+        rpt = int(rpt)
+    except ValueError:
+        print "enter 'start', 'end', or a beat number"
    
-    app.Final_align(mm, sm, mp, sp)
+    app.Final_align(pm, rm, ppt, rpt)
 
 def tw_final(app, pop):
-    mp = pop.pivotmaster.get()
-    sp = pop.pivotslave.get()
-    mp2 = pop.pivotmaster2.get()
+    #########################_____________________________
+    pm = pop.primarypivot.get()
+    sp = pop.replicapivot.get()
+    mp2 = pop.secondarypivot.get()
     sp2 = pop.pivotslave2.get()
     dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
 
-    mstri = pop.masterdrop.cget("text")
-    slvi = pop.slavedrop.cget("text")
+    p_inst = pop.primarydrop.cget("text")
+    r_inst = pop.replicadrop.cget("text")
     if pop.samemaster.get() == 0:
-        mstri2 = pop.masterdrop2.cget("text")
+        s_inst = pop.secondarydrop.cget("text")
     else:
-        mstri2 = mstri
+        s_inst = p_inst
 
     for i in app.inst:
         if i == mstri:
@@ -293,7 +293,7 @@ def Build_inst(app, pop):
     for i in app.scheme.inst:
         pop.ilist.insert(END, i)
     pop.idel = Button(pop, text='delete instrument',
-                      command=(lambda: app.del_inst(pop, int(pop.ilist.curselection()[0]))))
+                      command=(lambda: app.scheme_dispatcher('del_inst', name=pop.ilist.curselection()[0]))))
     pop.idel.grid(row=2, column=1)
     
 

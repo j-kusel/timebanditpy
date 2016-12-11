@@ -17,6 +17,7 @@ class Application(Frame):
         
         self.scheme = Scheme()
         self.server = ''
+
     def New(self):
         """clear all"""
         self.bars.delete(0, END)
@@ -56,30 +57,10 @@ class Application(Frame):
         self.imgpop = Toplevel()
         tbTk.Build_img(self, self.imgpop) #main application, top window
         
-    def imggen(self):
-        """plot image"""
-        tbImg.reset()
-        o = int(float(self.imgpop.opslider.get())/100*255)
-        tbImg.setopacity(o)
-        tbImg.setbpi(int(self.imgpop.bpislider.get()))
-        for i in self.inst:
-            tbImg.addinst(self.inst[i])
-        tbImg.plot()
-        self.imgpop.destroy()
-
     def Align_popup(self):
         """build the alignment window"""
         self.alignpop = Toplevel()
         tbTk.Build_align(self, self.alignpop)
-
-    def Final_align(self, mm, sm, mp, sp):
-        """perform alignment calculations, close popup, refresh"""
-        if mm:
-            sm.Shift(mm.Eval(mp)+mm.offset,sm.Eval(sp))
-        else:
-            sm.Shift(mp,sm.Eval(sp))
-        self.alignpop.destroy()
-        self.refresh()
 
     def Final_tweak(self, mm, sm, mm2, pts, dir):
         """master inst, slave inst, master meas, slave meas, master pt, slave pt, master movable pt, slave movable pt"""
