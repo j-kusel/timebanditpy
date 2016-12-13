@@ -228,17 +228,22 @@ def tw_final(app, pop):
     mp2 = pop.secondarypivot.get()
     sp2 = pop.pivotslave2.get()
     dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
-
-    p_inst = pop.primarydrop.cget("text")
-    r_inst = pop.replicadrop.cget("text")
+    try:
+        p_inst = app.scheme.inst[pop.primarydrop.cget("text")]
+        r_inst = pop.replicadrop.cget("text")
+########################!!!!!!!!!!!!!!!!
+    except IndexError:
+        print 'choose two instruments!'
+        break
     if pop.samemaster.get() == 0:
-        s_inst = pop.secondarydrop.cget("text")
+        try:
+            s_inst = pop.secondarydrop.cget("text")
+        except IndexError:
+            print 'select a secondary instrument or check the samemaster box!'
+            break
     else:
         s_inst = p_inst
-
-    for i in app.inst:
-        if i == mstri:
-            mm = app.inst[i][int(pop.masteralign.curselection()[0])]
+        pm = app.inst[i][int(pop.masteralign.curselection()[0])]
             
         if i == slvi:
             sm = app.inst[i][int(pop.slavealign.curselection()[0])]
