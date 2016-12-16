@@ -228,6 +228,7 @@ def tw_final(app, pop):
     ppt2 = pop.primarypivot2.get()
     rpt2 = pop.replicapivot2.get()
     dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
+<<<<<<< HEAD
 
     p_inst = app.scheme[pop.primarydrop.cget("text")]
     r_inst = app.scheme[pop.replicadrop.cget("text")]
@@ -248,6 +249,37 @@ def tw_final(app, pop):
     if ppt=='' or rpt=='' or ppt2=='' or rpt2=='':
         raise TypeError
         print "enter start and end points"
+=======
+    try:
+        p_inst = app.scheme.inst[pop.primarydrop.cget("text")]
+        r_inst = pop.replicadrop.cget("text")
+########################!!!!!!!!!!!!!!!!
+    except IndexError:
+        print 'choose two instruments!'
+        break
+    if pop.samemaster.get() == 0:
+        try:
+            s_inst = pop.secondarydrop.cget("text")
+        except IndexError:
+            print 'select a secondary instrument or check the samemaster box!'
+            break
+    else:
+        s_inst = p_inst
+        pm = app.inst[i][int(pop.masteralign.curselection()[0])]
+            
+        if i == slvi:
+            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
+        if i == mstri2:
+        #    try:
+            if pop.samemaster.get() == 0:
+                mm2 = app.inst[i][int(pop.masteralign2.curselection()[0])]
+            else:
+                mm2 = mm
+        #    except IndexError:
+        #        mm2=0
+
+    if mp=='' or sp=='' or mp2=='' or sp2=='':
+>>>>>>> b2a42999bddeda3a246e8aab31c418654b0ad95b
         pass
     else:
         pts = [int(ppt), int(rpt), int(ppt2), int(rpt2)]
