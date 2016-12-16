@@ -13,7 +13,7 @@ def Build_core(app, master):
     menu.add_command(label='open...', command=app.Load)
     menu.add_command(label='merge...', command=app.Merge)
     menu.add_command(label='save...', command=app.Save)
-    menu.add_command(label='print...', command=app.imgeval)
+    #menu.add_command(label='print...', command=app.schemegenerate_image)
 
     menu = Menu(app.menubar, tearoff=0)
     app.menubar.add_cascade(label='edit', menu=menu)
@@ -171,7 +171,7 @@ def Build_align(app, pop):
 
     pop.gotweak = Button(pop, text='anchor to pt', command= (lambda: tw_final(app, pop)))
     pop.gotweak.grid(row=2, column=7)
-    pop.gopad = Button(pop, text='pad to pt', command= (lambda: pa_final(app, pop)))
+    pop.gopad = Button(pop, text='pad to pt', command= (lambda: pad_final(app, pop)))
     pop.gopad.grid(row=0, column=7)
 
     pop.chs = IntVar()
@@ -223,59 +223,73 @@ def al_final(app, pop):
 
 def tw_final(app, pop):
     #########################_____________________________
-    pm = pop.primarypivot.get()
-    sp = pop.replicapivot.get()
-    mp2 = pop.secondarypivot.get()
-    sp2 = pop.pivotslave2.get()
+    ppt = pop.primarypivot.get()
+    rpt = pop.replicapivot.get()
+    ppt2 = pop.primarypivot2.get()
+    rpt2 = pop.replicapivot2.get()
     dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
 
-    p_inst = pop.primarydrop.cget("text")
-    r_inst = pop.replicadrop.cget("text")
-    if pop.samemaster.get() == 0:
-        s_inst = pop.secondarydrop.cget("text")
+    p_inst = app.scheme[pop.primarydrop.cget("text")]
+    r_inst = app.scheme[pop.replicadrop.cget("text")]
+    if pop.sameprimary.get() == 0:
+        s_inst = app.scheme[pop.secondarydrop.cget("text")]
     else:
         s_inst = p_inst
 
-    for i in app.inst:
-        if i == mstri:
-            mm = app.inst[i][int(pop.masteralign.curselection()[0])]
-            
-        if i == slvi:
-            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
-        if i == mstri2:
-        #    try:
-            if pop.samemaster.get() == 0:
-                mm2 = app.inst[i][int(pop.masteralign2.curselection()[0])]
-            else:
-                mm2 = mm
-        #    except IndexError:
-        #        mm2=0
-
-    if mp=='' or sp=='' or mp2=='' or sp2=='':
+    try:
+        p_meas = p_inst[pop.primaryalign.get(pop.primaryalign.curselection()[0])]
+        r_meas = r_inst[pop.replicaalign.get(pop.replicaalign.curselection()[0])]
+        if pop.sameprimary.get() == 0:
+            s_meas = s_inst[pop.secondaryalign.get(pop.secondaryalign.curselection()[0])]
+        else:
+            s_meas = p_meas
+    except IndexError:
+        print "select measures to tweak"
+    if ppt=='' or rpt=='' or ppt2=='' or rpt2=='':
+        raise TypeError
+        print "enter start and end points"
         pass
     else:
-        pts = [int(mp), int(sp), int(sp2), int(mp2)]
+        pts = [int(ppt), int(rpt), int(ppt2), int(rpt2)]
         #if pmmv2!='' or mp2!='':
         #    pts.append(mp2)
         #    pts.append(pmmv2) ###############################
-        app.Final_tweak(mm, sm, mm2, pts, dir)# m2=mm2)
+        app.Final_tweak(p_meas, r_meas, s_meas, pts, dir)
 
-def pa_final(app, pop):
-    app.Final_pad(pop.masterdrop.cget("text"),
-                    pop.slavedrop.cget("text"),
-                    int(pop.masteralign.curselection()[0]),
-                    int(pop.slavealign.curselection()[0]),
-                    pop.pivotmaster.get(), #str
-                    pop.pivotslave.get(), #str
-		    pop.tweakend.get()) #str
+def pad_final(app, pop):
+    try:
+        pts = [int(p) for p in [pop.primarypivot.get(), pop.replicapivot.get(), pop.primarypivot2.get(), pop.replicapivot2.get()]]
+    except TypeError:
+        pass
+    try:
+        p_inst = app.scheme[pop.primarydrop.cget("text")]
+        r_inst = app.scheme[pop.replicadrop.cget("text")]
+        p_meas = p_inst[pop.primaryalign.get(pop.primaryalign.curselection()[0])]
+        r_meas = r_inst[pop.replicaalign.get(pop.replicaalign.curselection()[0])]
+        if pop.sameprimary.get() == 0:
+            s_inst = pop.secondarydrop.cget("text")
+            s_meas = s_inst[pop.secondaryalign.get(pop.secondaryalign.curselection()[0])]
+        else:
+            s_meas = p_meas
+    except IndexError:
+        print "select instruments and measures"
+    dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
 
+    app.scheme.pad(p_meas, r_meas, s_meas, pts, dir)
+
+# @MAKE A DECORATOR TO PULL GUI POPUP INFORMATION, HANDLE GAPS/ERRORS
 def basic_align(app, pop):
-    mp = float(pop.static.get())
-    for i in app.inst:
-        if i == pop.slavedrop.cget("text"):
-            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
-    sp = float(pop.pivotslave.get())
-    app.Final_align(0, sm, mp, sp)
+    ppt = float(pop.static.get())
+    rpt = float(pop.replicapivot.get())
+    try:
+        p_inst = app.scheme[pop.primarydrop.cget("text")]
+        r_inst = app.scheme[pop.replicadrop.cget("text")]
+        p_meas = p_inst[pop.primaryalign.get(pop.primaryalign.curselection()[0])]
+        r_meas = r_inst[pop.replicaalign.get(pop.replicaalign.curselection()[0])]
+    except IndexError:
+        print "select instruments and measures"
+
+    app.scheme.align(p_meas, r_meas, ppt, rpt)
 
 def Build_inst(app, pop):
     """Takes main application, Toplevel() window as arguments"""
@@ -293,7 +307,7 @@ def Build_inst(app, pop):
     for i in app.scheme.inst:
         pop.ilist.insert(END, i)
     pop.idel = Button(pop, text='delete instrument',
-                      command=(lambda: app.scheme_dispatcher('del_inst', name=pop.ilist.curselection()[0]))))
+                      command=(lambda: app.scheme_dispatcher('del_inst', name=pop.ilist.curselection()[0])))
     pop.idel.grid(row=2, column=1)
     
 

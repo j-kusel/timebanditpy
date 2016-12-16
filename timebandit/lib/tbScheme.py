@@ -14,7 +14,7 @@ class Scheme(object):
         try:
             del self.inst[str(name)]
         except IndexError:
-            break
+            pass
 
     def create(self, instrument='', start='', end='', time=''):
         """add measure to database from current input data"""
@@ -56,7 +56,7 @@ class Scheme(object):
         eq_primary = lambda x: (60000/((primary_meas.end-primary_meas.begin)/primary_meas.timesig*x+primary_meas.begin))
         eq_secondary = lambda x: (60000/((secondary_meas.end-secondary_meas.begin)/secondary_meas.timesig*x+secondary_meas.begin))
 
-    f_m = integrate.quad(eq_primary,0,pts[0])[0]+primary_meas.offset
+        f_m = integrate.quad(eq_primary,0,pts[0])[0]+primary_meas.offset
         f_m2 = integrate.quad(eq_secondary,0,pts[3])[0]+secondary_meas.offset
         final = 0
         for i in range(0, tries):
@@ -104,7 +104,7 @@ class Scheme(object):
         #self.alignpop.destroy()
         #self.refresh()
 
-    def Final_pad(self, mstrm, slvm, pmstr, pslv, pme):
+    def pad(self, mstrm, slvm, pmstr, pslv, pme):
         for i in self.inst:
             if i == mstri:
                 mi = self.inst[i]
@@ -119,25 +119,25 @@ class Scheme(object):
         else:
             termpt = int(pme)
         ######
-        slv.Shift(int(integrate.quad(primary_meas.eq,0,primary_point)[0])+primary_meas.offset, int(integrate.quad(replica_meas.eq,0,replica_point)[0]))
+        slv.Shift(int(integrate.quad(p_meas.eq,0,pts[0])[0])+p_meas.offset, int(integrate.quad(r_meas.eq,0,pts[1])[0]))
         # to prepare for aligntest.py code:
         master = [mstr.begin, mstr.end, mstr.timesig, pm]
         slave = [slv.begin, slv.end, slv.timesig, ps]
         tries = 100
         tolerance = 50
 
-        eq_m = lambda x: (60000/((primary_meas.end-primary_meas.begin)/primary_meas.timesig*x+primary_measure.begin))
-        f_m = integrate.quad(eq_m,primary_point,pme)[0]
+        eq_p = lambda x: (60000/((p_meas.end-p_meas.begin)/p_meas.timesig*x+p_measure.begin))
+        f_p = integrate.quad(eq_p,0,pts[0])[0]
         for i in range(0, tries):
-            eq_s = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
-            f_s = integrate.quad(eq_s,replica_point,replica_meas.timesig-1)[0]
-            dist = f_m - f_s
+            eq_r = lambda x: (60000/((r_meas.end-r_meas.begin)/r_meas.timesig*x+r_meas.begin))
+            f_r = integrate.quad(eq_r,pts[1],r_meas.timesig-1)[0]
+            dist = f_p - f_r
             print dist
             if abs(dist)<=tolerance:
-                print "success! new timesig: %f, %d away" % (replica_meas.timesig,dist)
+                print "success! new timesig: %f, %d away" % (r_meas.timesig,dist)
                 break
             if dist>0:
-                replica_meas.timesig+=.25
+                r_meas.timesig+=.25
             else:
                 replica_meas.timesig-=.25
             print "at try %d we are %d away" % (i, dist)
