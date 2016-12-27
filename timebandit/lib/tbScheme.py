@@ -14,7 +14,8 @@ class Scheme(object):
         try:
             del self.inst[str(name)]
         except IndexError:
-            break
+            print 'select an instrument to remove'
+            pass
 
     def create(self, instrument='', start='', end='', time=''):
         """add measure to database from current input data"""
@@ -56,14 +57,14 @@ class Scheme(object):
         eq_primary = lambda x: (60000/((primary_meas.end-primary_meas.begin)/primary_meas.timesig*x+primary_meas.begin))
         eq_secondary = lambda x: (60000/((secondary_meas.end-secondary_meas.begin)/secondary_meas.timesig*x+secondary_meas.begin))
 
-    f_m = integrate.quad(eq_primary,0,pts[0])[0]+primary_meas.offset
-        f_m2 = integrate.quad(eq_secondary,0,pts[3])[0]+secondary_meas.offset
+        f_p = integrate.quad(eq_primary,0,pts[0])[0]+primary_meas.offset
+        f_s = integrate.quad(eq_secondary,0,pts[3])[0]+secondary_meas.offset
         final = 0
         for i in range(0, tries):
-            eq_s = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
-            f_s = integrate.quad(eq_s,pts[1],pts[2])[0]
-            dist = abs(abs(f_m)-abs(f_m2)) - abs(f_s)
-            print "master lengths: %d %d // slave length: %d" % (f_m, f_m2, f_s)
+            eq_r = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
+            f_r = integrate.quad(eq_r,pts[1],pts[2])[0]
+            dist = abs(abs(f_p)-abs(f_s)) - abs(f_r)
+            print "master lengths: %d %d // slave length: %d" % (f_p, f_s, f_r)
             if (abs(dist)<=tolerance):
                 final = 1
                 print "%d <= %d tolerance" % (abs(dist), tolerance)
@@ -90,28 +91,24 @@ class Scheme(object):
                 else:
                     print "you gotta move something!"
             if final==1:
-                eq_s = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
-                f_s = integrate.quad(eq_s,pts[1],pts[3])[0]
-                newdist = abs(abs(f_m)-abs(f_m2)) - abs(f_s)
+                eq_r = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
+                f_r = integrate.quad(eq_r,pts[1],pts[3])[0]
+                newdist = abs(abs(f_p)-abs(f_s)) - abs(f_r)
                 if abs(newdist) > abs(dist):
                     replica_meas.end = ensure
                     replica_meas.begin = insure
                 replica_meas.Calc()
                 replica_meas.beatstr = replica_meas.Beat_disp()
-                break
+                pass
 
         replica_meas.Shift(int(integrate.quad(primary_meas.eq,0,pts[0])[0])+primary_meas.offset, int(integrate.quad(secondary_meas.eq,0,pts[1])[0]))
         #self.alignpop.destroy()
         #self.refresh()
 
-    def Final_pad(self, mstrm, slvm, pmstr, pslv, pme):
-        for i in self.inst:
-            if i == mstri:
-                mi = self.inst[i]
-            if i == slvi:
-                si = self.inst[i]
-        slv = si[slvm]
-        mstr = mi[mstrm]
+    def pad(self, p_meas, r_meas, ppt, rpt, pme):
+        primary_meas = p_meas
+        replica_meas = r_meas
+###########################
         pm = int(pmstr)
         ps = int(pslv)
         if pme=='' or pme=='end':
@@ -121,8 +118,6 @@ class Scheme(object):
         ######
         slv.Shift(int(integrate.quad(primary_meas.eq,0,primary_point)[0])+primary_meas.offset, int(integrate.quad(replica_meas.eq,0,replica_point)[0]))
         # to prepare for aligntest.py code:
-        master = [mstr.begin, mstr.end, mstr.timesig, pm]
-        slave = [slv.begin, slv.end, slv.timesig, ps]
         tries = 100
         tolerance = 50
 

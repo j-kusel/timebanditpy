@@ -13,12 +13,12 @@ def Build_core(app, master):
     menu.add_command(label='open...', command=app.Load)
     menu.add_command(label='merge...', command=app.Merge)
     menu.add_command(label='save...', command=app.Save)
-    menu.add_command(label='print...', command=app.imgeval)
+    menu.add_command(label='print...', command=(lambda: Build_img(app)))
 
     menu = Menu(app.menubar, tearoff=0)
     app.menubar.add_cascade(label='edit', menu=menu)
-    menu.add_command(label='add inst...', command=app.Inst_manager)
-    menu.add_command(label='align...', command=app.Align_popup)
+    menu.add_command(label='add inst...', command=(lambda: self.Build_inst(app)))
+    menu.add_command(label='align...', command=(lambda: self.Build_align(app)))
     #menu.add_command(label='evaluate...', command=app.rhyeval)
     menu.add_command(label='preferences...')
 
@@ -44,7 +44,7 @@ def Build_core(app, master):
     app.rhy = Entry(app)
     app.rhy.grid(row = 0, column = 2, columnspan=2)
 
-    app.go = Button(app, text="go", command=app.create, padx = 96)
+    app.go = Button(app, text="go", command=create_final, padx = 96)
     app.go.grid(row=3, column=0, columnspan=2)
     #app.eval = Button(app, text="eval...", command=app.rhyeval)
     #app.eval.grid(row = 1, column = 2)
@@ -81,8 +81,9 @@ def Build_core(app, master):
     app.normbut = Button(app, text='normalize', command=app.Norm)
     app.normbut.grid(row=4, column=2, columnspan=2)
 
-def Build_img(app, pop):
-    """Takes main application, Toplevel() window as arguments"""
+def Build_img(app):
+    """Takes main application as argument"""
+    pop = Toplevel()
     pop.title("print")
         
     pop.opslider = Scale(pop, from_=0, to=100)
@@ -97,12 +98,12 @@ def Build_img(app, pop):
 
     pop.imgex = Button(pop, text='cancel', command=pop.destroy)
     pop.imgex.grid(row=2, column=0)
-    pop.plot = Button(pop, text="print", command=app.imggen)
+    pop.plot = Button(pop, text="print", command= (lambda: app.scheme_dispatcher('generate_image', opacity=pop.opslider.get(), divisions=pop.bpislider.get()))
     pop.plot.grid(row=2, column=1)
 
-def Build_align(app, pop):
+def Build_align(app):
     """Takes main application, Toplevel() window as arguments"""
-    
+    pop = Toplevel()
     pop.title("align")
     menuinst = []
     [menuinst.append(i) for i in app.scheme.inst]
@@ -171,7 +172,7 @@ def Build_align(app, pop):
 
     pop.gotweak = Button(pop, text='anchor to pt', command= (lambda: tw_final(app, pop)))
     pop.gotweak.grid(row=2, column=7)
-    pop.gopad = Button(pop, text='pad to pt', command= (lambda: pa_final(app, pop)))
+    pop.gopad = Button(pop, text='pad to pt', command= (lambda: pad_final(app, pop)))
     pop.gopad.grid(row=0, column=7)
 
     pop.chs = IntVar()
@@ -185,6 +186,16 @@ def Build_align(app, pop):
     pop.chend.grid(row=1, column=6)
     pop.statlab.grid(row=2, column=6)
     pop.static.grid(row=3, column=6)
+
+def create_final(app):
+    inst = app.insts.get(ACTIVE)[0]
+    st = app.st.get()
+    end = app.end.get()
+    length = app.long.get()
+    if '' in [inst, st, end, length]:
+        print 'enter all required measure info'
+    else:
+        app.scheme_dispatcher('command', instrument=inst, start=st, end=end, time=length)
 
 def al_box_update(app, box, whichinst):
     """takes app, Listbox to update, and instrument name as string"""
@@ -219,71 +230,51 @@ def al_final(app, pop):
     except ValueError:
         print "enter 'start', 'end', or a beat number"
    
-    app.Final_align(pm, rm, ppt, rpt)
+    app.scheme_dispatcher('align', pm, rm, ppt, rpt)
 
 def tw_final(app, pop):
     #########################_____________________________
-    pm = pop.primarypivot.get()
-    sp = pop.replicapivot.get()
-    mp2 = pop.secondarypivot.get()
-    sp2 = pop.pivotslave2.get()
+    ppt = pop.primarypivot.get()
+    rpt = pop.replicapivot.get()
+    ppt2 = pop.primarypivot2.get()
+    rpt2 = pop.replicapivot2.get()
     dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
     try:
-        p_inst = app.scheme.inst[pop.primarydrop.cget("text")]
-        r_inst = pop.replicadrop.cget("text")
-########################!!!!!!!!!!!!!!!!
+        pm = app.inst[pop.primarydrop.cget("text")][pop.primaryalign.get(ACTIVE)[0]]
+        rm = app.inst[pop.replicadrop.cget("text")][pop.replicaalign.get(ACTIVE)[0]]
     except IndexError:
         print 'choose two instruments!'
-        break
-    if pop.samemaster.get() == 0:
+        pass
+
+    if pop.sameprimary.get() == 0:
         try:
-            s_inst = pop.secondarydrop.cget("text")
+            sm = app.scheme.inst[pop.secondarydrop.cget("text")][int(pop.secondaryalign.curselection()[0])]
         except IndexError:
             print 'select a secondary instrument or check the samemaster box!'
-            break
+            pass
     else:
-        s_inst = p_inst
-        pm = app.inst[i][int(pop.masteralign.curselection()[0])]
-            
-        if i == slvi:
-            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
-        if i == mstri2:
-        #    try:
-            if pop.samemaster.get() == 0:
-                mm2 = app.inst[i][int(pop.masteralign2.curselection()[0])]
-            else:
-                mm2 = mm
-        #    except IndexError:
-        #        mm2=0
-
-    if mp=='' or sp=='' or mp2=='' or sp2=='':
+        sm = pm
+    pts = [ppt, rpt, ppt2, rpt2]
+    if '' in pts
         pass
     else:
-        pts = [int(mp), int(sp), int(sp2), int(mp2)]
-        #if pmmv2!='' or mp2!='':
-        #    pts.append(mp2)
-        #    pts.append(pmmv2) ###############################
-        app.Final_tweak(mm, sm, mm2, pts, dir)# m2=mm2)
+        app.scheme_dispatcher('tweak', pm, rm, sm, pts, dir)
 
-def pa_final(app, pop):
-    app.Final_pad(pop.masterdrop.cget("text"),
-                    pop.slavedrop.cget("text"),
-                    int(pop.masteralign.curselection()[0]),
-                    int(pop.slavealign.curselection()[0]),
-                    pop.pivotmaster.get(), #str
-                    pop.pivotslave.get(), #str
-		    pop.tweakend.get()) #str
+def pad_final(app, pop):
+#####################
+    pm = app.scheme.inst[pop.primarydrop.cget("text")][int(pop.primaryalign.curselection()[0])]
+    rm = app.scheme.inst[pop.replicadrop.cget("text")][int(pop.replicaalign.curselection()[0])]
 
-def basic_align(app, pop):
-    mp = float(pop.static.get())
-    for i in app.inst:
-        if i == pop.slavedrop.cget("text"):
-            sm = app.inst[i][int(pop.slavealign.curselection()[0])]
-    sp = float(pop.pivotslave.get())
-    app.Final_align(0, sm, mp, sp)
+    pts = [float(pop.primaryalign.curselection()[0]), float(pop.replicaalign.curselection()[0]), pop.primarypivot.get()]
+    if '' in pts:
+        pass
+    else:
+        app.scheme_dispatcher('pad', app.scheme.inst[pop],
+                  app.scheme.inst[pop.replicadrop.cget("text")], pop.tweakend.get())
 
-def Build_inst(app, pop):
+def Build_inst(app):
     """Takes main application, Toplevel() window as arguments"""
+    pop = Toplevel()
     pop.title("instrument manager")
 
     pop.ilab = Label(pop, text='instrument name', relief=RAISED)
@@ -300,7 +291,6 @@ def Build_inst(app, pop):
     pop.idel = Button(pop, text='delete instrument',
                       command=(lambda: app.scheme_dispatcher('del_inst', name=pop.ilist.curselection()[0]))))
     pop.idel.grid(row=2, column=1)
-    
 
 def Clear(app):
     """clears entry boxes after file change or function call"""
@@ -309,5 +299,3 @@ def Clear(app):
     app.long.delete(0, END)
     app.rhy.delete(0, END)
 
-
-        
