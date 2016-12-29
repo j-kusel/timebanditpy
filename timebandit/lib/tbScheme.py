@@ -7,6 +7,7 @@ class Scheme(object):
 
     def create_inst(self, name='default'):
         """add a new instrument"""
+        print "creating new instrument %s" % name
         self.inst[str(name)] = []
     
     def del_inst(self, name=''):
@@ -19,9 +20,11 @@ class Scheme(object):
 
     def create(self, instrument='', start='', end='', time=''):
         """add measure to database from current input data"""
-        measure_data = [instrument, start, end, time]
-        if '' not in measure_data:
-            self.inst[self.inst.index(measure_data[0])] += Measure(*measure_data)
+        try:
+            measure_data = [instrument, int(start), int(end), float(time)]
+            self.inst[measure_data[0]] += Measure(*measure_data)
+        except TypeError:
+            print "enter all necessary information for new measure"
 
     def generate_image(self, opacity=50, divisions=4):
         """plot image"""
@@ -116,17 +119,17 @@ class Scheme(object):
         else:
             termpt = int(pme)
         ######
-        slv.Shift(int(integrate.quad(primary_meas.eq,0,primary_point)[0])+primary_meas.offset, int(integrate.quad(replica_meas.eq,0,replica_point)[0]))
+        slv.Shift(int(integrate.quad(primary_meas.eq,0,ppt)[0])+primary_meas.offset, int(integrate.quad(replica_meas.eq,0,rpt)[0]))
         # to prepare for aligntest.py code:
         tries = 100
         tolerance = 50
 
-        eq_m = lambda x: (60000/((primary_meas.end-primary_meas.begin)/primary_meas.timesig*x+primary_measure.begin))
-        f_m = integrate.quad(eq_m,primary_point,pme)[0]
+        eq_p = lambda x: (60000/((primary_meas.end-primary_meas.begin)/primary_meas.timesig*x+primary_meas.begin))
+        f_p = integrate.quad(eq_m,primary_point,pme)[0]
         for i in range(0, tries):
-            eq_s = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
-            f_s = integrate.quad(eq_s,replica_point,replica_meas.timesig-1)[0]
-            dist = f_m - f_s
+            eq_r = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
+            f_r = integrate.quad(eq_s,rpt,replica_meas.timesig-1)[0]
+            dist = f_p - f_r
             print dist
             if abs(dist)<=tolerance:
                 print "success! new timesig: %f, %d away" % (replica_meas.timesig,dist)
@@ -136,3 +139,11 @@ class Scheme(object):
             else:
                 replica_meas.timesig-=.25
             print "at try %d we are %d away" % (i, dist)
+
+    def normalize(self, instrument=0, measure=0):
+        """adjust offsets to shift timecodes relative to selected measure"""
+        meas = self.inst[instrument][measure]
+        off = meas.beats[0] - meas.offset
+        for i in self.scheme.inst:
+            for m in i:
+                m.offset += off

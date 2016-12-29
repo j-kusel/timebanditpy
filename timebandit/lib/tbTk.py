@@ -17,8 +17,8 @@ def Build_core(app, master):
 
     menu = Menu(app.menubar, tearoff=0)
     app.menubar.add_cascade(label='edit', menu=menu)
-    menu.add_command(label='add inst...', command=(lambda: self.Build_inst(app)))
-    menu.add_command(label='align...', command=(lambda: self.Build_align(app)))
+    menu.add_command(label='add inst...', command=(lambda: Build_inst(app)))
+    menu.add_command(label='align...', command=(lambda: Build_align(app)))
     #menu.add_command(label='evaluate...', command=app.rhyeval)
     menu.add_command(label='preferences...')
 
@@ -44,7 +44,7 @@ def Build_core(app, master):
     app.rhy = Entry(app)
     app.rhy.grid(row = 0, column = 2, columnspan=2)
 
-    app.go = Button(app, text="go", command=create_final, padx = 96)
+    app.go = Button(app, text="go", command=(lambda: create_final(app)), padx = 96)
     app.go.grid(row=3, column=0, columnspan=2)
     #app.eval = Button(app, text="eval...", command=app.rhyeval)
     #app.eval.grid(row = 1, column = 2)
@@ -62,15 +62,23 @@ def Build_core(app, master):
 
     app.insts = Listbox(app, exportselection=0)
     app.insts.grid(row = 5, column = 0, columnspan=2, ipadx=26)
-    app.insts.bind('<<ListboxSelect>>', app.Display_measures)
 
-    app.alignbut = Button(app, text='align...', command=app.Align_popup)
+    def Display_measures(_event):
+        app.bars.delete(0, END)
+        if len(app.scheme.inst) != 0:
+            print app.insts.get(ACTIVE)
+            for i in app.scheme.inst[app.insts.get(ACTIVE)]:
+                app.bars.insert(END, i)
+
+    app.insts.bind('<<ListboxSelect>>', Display_measures)
+
+    app.alignbut = Button(app, text='align...', command=(lambda: Build_align(app)))
     app.alignbut.grid(row=1, column=3)
 
     app.playbut = Button(app, text='play!', command=app.pdplay)
     app.playbut.grid(row=2, column=2)
 
-    app.printbut = Button(app, text='print...', command=app.Image_popup)
+    app.printbut = Button(app, text='print...', command=(lambda: Build_img(app)))
     app.printbut.grid(row=2, column=3)
 
     app.savebut = Button(app, text='save...', command=app.Save)
@@ -78,7 +86,7 @@ def Build_core(app, master):
     app.loadbut = Button(app, text='load...', command=app.Load)
     app.loadbut.grid(row=3, column=2)
 
-    app.normbut = Button(app, text='normalize', command=app.Norm)
+    app.normbut = Button(app, text='normalize', command=(lambda: norm(app)))
     app.normbut.grid(row=4, column=2, columnspan=2)
 
 def Build_img(app):
@@ -98,7 +106,7 @@ def Build_img(app):
 
     pop.imgex = Button(pop, text='cancel', command=pop.destroy)
     pop.imgex.grid(row=2, column=0)
-    pop.plot = Button(pop, text="print", command= (lambda: app.scheme_dispatcher('generate_image', opacity=pop.opslider.get(), divisions=pop.bpislider.get()))
+    pop.plot = Button(pop, text="print", command= (lambda: app.scheme_dispatcher('generate_image', opacity=pop.opslider.get(), divisions=pop.bpislider.get())))
     pop.plot.grid(row=2, column=1)
 
 def Build_align(app):
@@ -138,7 +146,7 @@ def Build_align(app):
     pop.replicaalign.grid(row=1, column=2, columnspan=2)
     pop.secondaryalign.grid(row=1, column=4, columnspan=2)
 
-    for i in app.inst[app.inst.index(0)]:
+    for i in app.scheme.inst[app.insts.get(ACTIVE)]:
         pop.primaryalign.insert(END, i.beatstr)
         pop.replicaalign.insert(END, i.beatstr)
         pop.secondaryalign.insert(END, i.beatstr)
@@ -179,7 +187,8 @@ def Build_align(app):
     pop.che = IntVar()
     pop.chstart = Checkbutton(pop, text="anchor start", variable=pop.chs, onvalue=1, offvalue=0)
     pop.chend = Checkbutton(pop, text="anchor end", variable=pop.che, onvalue=2, offvalue=0)
-    pop.statlab = Button(pop, text="global pt", command= (lambda: basic_align(app,pop)))
+    ###### vvvvvvvv
+    pop.statlab = Button(pop, text="global pt", command= (lambda: al_final(app,pop)))
     pop.static = Entry(pop)
 
     pop.chstart.grid(row=0, column=6)
@@ -188,22 +197,26 @@ def Build_align(app):
     pop.static.grid(row=3, column=6)
 
 def create_final(app):
-    inst = app.insts.get(ACTIVE)[0]
+    inst = app.insts.get(ACTIVE)
     st = app.st.get()
     end = app.end.get()
     length = app.long.get()
     if '' in [inst, st, end, length]:
         print 'enter all required measure info'
     else:
-        app.scheme_dispatcher('command', instrument=inst, start=st, end=end, time=length)
+        app.scheme_dispatcher('create', instrument=inst, start=int(st), end=int(end), time=int(length))
+        refresh(app)
+
+def norm(app):
+    """adjust offsets so there are no negative timecodes"""
+    app.scheme_dispatcher('normalize', instrument=app.insts.get(ACTIVE), measure=int(app.bars.curselection()[0]))
+    refresh(app)
 
 def al_box_update(app, box, whichinst):
     """takes app, Listbox to update, and instrument name as string"""
     box.delete(0, END)
-    for i in app.inst:
-        if i == whichinst:
-            for j in app.inst[i]:
-                box.insert(END, j.beatstr)
+    for m in app.scheme.inst[whichinst]:
+        box.insert(END, m.beatstr)
 
 def al_final(app, pop):
     try:
@@ -231,6 +244,7 @@ def al_final(app, pop):
         print "enter 'start', 'end', or a beat number"
    
     app.scheme_dispatcher('align', pm, rm, ppt, rpt)
+    refresh(app)
 
 def tw_final(app, pop):
     #########################_____________________________
@@ -240,8 +254,8 @@ def tw_final(app, pop):
     rpt2 = pop.replicapivot2.get()
     dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
     try:
-        pm = app.inst[pop.primarydrop.cget("text")][pop.primaryalign.get(ACTIVE)[0]]
-        rm = app.inst[pop.replicadrop.cget("text")][pop.replicaalign.get(ACTIVE)[0]]
+        pm = app.scheme.inst[pop.primarydrop.cget("text")][pop.primaryalign.get(ACTIVE)[0]]
+        rm = app.scheme.inst[pop.replicadrop.cget("text")][pop.replicaalign.get(ACTIVE)[0]]
     except IndexError:
         print 'choose two instruments!'
         pass
@@ -255,10 +269,11 @@ def tw_final(app, pop):
     else:
         sm = pm
     pts = [ppt, rpt, ppt2, rpt2]
-    if '' in pts
+    if '' in pts:
         pass
     else:
         app.scheme_dispatcher('tweak', pm, rm, sm, pts, dir)
+        refresh(app)
 
 def pad_final(app, pop):
 #####################
@@ -269,8 +284,8 @@ def pad_final(app, pop):
     if '' in pts:
         pass
     else:
-        app.scheme_dispatcher('pad', app.scheme.inst[pop],
-                  app.scheme.inst[pop.replicadrop.cget("text")], pop.tweakend.get())
+        app.scheme_dispatcher('pad', pm, rm, pts[0], pts[1], pts[2])
+        refresh(app)
 
 def Build_inst(app):
     """Takes main application, Toplevel() window as arguments"""
@@ -282,15 +297,23 @@ def Build_inst(app):
     pop.iname = Entry(pop)
     pop.iname.grid(row=0, column=1)
     pop.igo = Button(pop, text='add instrument',
-                     command=(lambda: app.scheme_dispatcher('create_inst', name=str(pop.iname.get()))))
+                     command=(lambda: inst_create_final(app, pop)))
     pop.igo.grid(row=0, column=2)
     pop.ilist = Listbox(pop, exportselection=0)
     pop.ilist.grid(row=1, column=0, columnspan=2)
     for i in app.scheme.inst:
         pop.ilist.insert(END, i)
     pop.idel = Button(pop, text='delete instrument',
-                      command=(lambda: app.scheme_dispatcher('del_inst', name=pop.ilist.curselection()[0]))))
+                      command=(lambda: inst_del_final(app, pop)))
     pop.idel.grid(row=2, column=1)
+
+def inst_create_final(app, pop):
+    app.scheme_dispatcher('create_inst', name=str(pop.iname.get()))
+    refresh(app)
+
+def inst_del_final(app, pop):
+    app.scheme_dispatcher('del_inst', name=pop.ilist.get(ACTIVE))
+    refresh(app)
 
 def Clear(app):
     """clears entry boxes after file change or function call"""
@@ -299,3 +322,13 @@ def Clear(app):
     app.long.delete(0, END)
     app.rhy.delete(0, END)
 
+def refresh(app):
+    inst_select = app.insts.get(ACTIVE)
+    app.insts.delete(0, END)
+    app.bars.delete(0, END)
+    for i in app.scheme.inst:
+        print i
+        app.insts.insert(END, i)
+        if i == inst_select:
+            for m in app.scheme.inst[i]:
+                app.bars.insert(END, m)

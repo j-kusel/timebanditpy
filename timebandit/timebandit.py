@@ -95,11 +95,12 @@ class Application(Frame):
         """find what's selected"""
         return self.inst[self.inst.index(int(self.insts.curselection()[0]))]
 
-    def Display_measures(self, sel):
+    def Display_measures(self):
         """show measures"""
         self.bars.delete(0, END)
-        if len(self.inst) != 0:
-            for i in self.get_sel_inst():
+        if len(self.scheme.inst) != 0:
+            print self.insts.get(ACTIVE)
+            for i in self.scheme.inst[self.insts.get(ACTIVE)]:
                 self.bars.insert(END, i)
 
 # TESTING
