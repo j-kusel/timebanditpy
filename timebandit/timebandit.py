@@ -21,25 +21,15 @@ class Application(Frame):
     def New(self):
         """clear all"""
         self.bars.delete(0, END)
-        tbTk.Clear(self)
         self.inst = InstManager()
+        tbTk.refresh(self)
 
     def scheme_dispatcher(self, command, **kwargs):
         try:
             getattr(self.scheme, command)(**kwargs)
-            self.refresh()
+            tbTk.refresh(self)
         except:
             traceback.print_exc()
-        self.refresh()
-
-    def refresh(self):
-        """rebuild instruments list, beat strings"""
-        self.insts.delete(0, END)
-        for i in self.scheme.inst:
-            self.insts.insert(END, i)
-            for m in self.scheme.inst[i]:
-                m.beatstr = m.Beat_disp()
-        self.bars.delete(0,END)
 
     def Build_server(self):
         """open a socket to remote pure data clients"""
@@ -74,7 +64,7 @@ class Application(Frame):
                 self.inst[i[0]] += newmeas
         else:
             self.inst = instinsure
-        self.refresh()
+        tbTk.refresh(self)
 
     def Merge(self): 
         ## good candidate for a decorator?!
@@ -88,20 +78,6 @@ class Application(Frame):
         for i in self.inst:
             for m in self.inst[i]:
                 m.offset += off
-        self.refresh()
-
-
-    def get_sel_inst(self):
-        """find what's selected"""
-        return self.inst[self.inst.index(int(self.insts.curselection()[0]))]
-
-    def Display_measures(self):
-        """show measures"""
-        self.bars.delete(0, END)
-        if len(self.scheme.inst) != 0:
-            print self.insts.get(ACTIVE)
-            for i in self.scheme.inst[self.insts.get(ACTIVE)]:
-                self.bars.insert(END, i)
 
 # TESTING
 def testsuite():

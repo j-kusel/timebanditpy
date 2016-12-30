@@ -66,8 +66,7 @@ def Build_core(app, master):
     def Display_measures(_event):
         app.bars.delete(0, END)
         if len(app.scheme.inst) != 0:
-            print app.insts.get(ACTIVE)
-            for i in app.scheme.inst[app.insts.get(ACTIVE)]:
+            for i in app.scheme.inst[app.insts.get(app.insts.curselection()[0])]:
                 app.bars.insert(END, i)
 
     app.insts.bind('<<ListboxSelect>>', Display_measures)
@@ -243,7 +242,7 @@ def al_final(app, pop):
     except ValueError:
         print "enter 'start', 'end', or a beat number"
    
-    app.scheme_dispatcher('align', pm, rm, ppt, rpt)
+    app.scheme_dispatcher('align', primary_meas=pm, replica_meas=rm, primary_point=ppt, replica_point=rpt)
     refresh(app)
 
 def tw_final(app, pop):
@@ -254,8 +253,8 @@ def tw_final(app, pop):
     rpt2 = pop.replicapivot2.get()
     dir = pop.chs.get() + pop.che.get() #(neither, start, end, or both)
     try:
-        pm = app.scheme.inst[pop.primarydrop.cget("text")][pop.primaryalign.get(ACTIVE)[0]]
-        rm = app.scheme.inst[pop.replicadrop.cget("text")][pop.replicaalign.get(ACTIVE)[0]]
+        pm = app.scheme.inst[pop.primarydrop.cget("text")][pop.primaryalign.curselection()[0]]
+        rm = app.scheme.inst[pop.replicadrop.cget("text")][pop.replicaalign.curselection()[0]]
     except IndexError:
         print 'choose two instruments!'
         pass
@@ -268,24 +267,26 @@ def tw_final(app, pop):
             pass
     else:
         sm = pm
-    pts = [ppt, rpt, ppt2, rpt2]
-    if '' in pts:
-        pass
-    else:
-        app.scheme_dispatcher('tweak', pm, rm, sm, pts, dir)
+    try:
+        pts = [float(x) for x in [ppt, rpt, ppt2, rpt2]]
+        app.scheme_dispatcher('tweak', primary_meas=pm, replica_meas=rm, secondary_meas=sm, points=pts, direction=dir)
+        pop.destroy()
         refresh(app)
+    except ValueError:
+        print 'enter all necessary information for tweaking measures'
 
 def pad_final(app, pop):
 #####################
     pm = app.scheme.inst[pop.primarydrop.cget("text")][int(pop.primaryalign.curselection()[0])]
     rm = app.scheme.inst[pop.replicadrop.cget("text")][int(pop.replicaalign.curselection()[0])]
 
-    pts = [float(pop.primaryalign.curselection()[0]), float(pop.replicaalign.curselection()[0]), pop.primarypivot.get()]
-    if '' in pts:
-        pass
-    else:
-        app.scheme_dispatcher('pad', pm, rm, pts[0], pts[1], pts[2])
+    try:
+        pts = [float(pop.primaryalign.curselection()[0]), float(pop.replicaalign.curselection()[0]), int(pop.primarypivot.get())]
+        app.scheme_dispatcher('pad', primary_meas=pm, replica_meas=rm, points=pts)
         refresh(app)
+        pop.destroy()
+    except ValueError:
+        print "enter all necessary padding information"
 
 def Build_inst(app):
     """Takes main application, Toplevel() window as arguments"""
@@ -309,25 +310,28 @@ def Build_inst(app):
 
 def inst_create_final(app, pop):
     app.scheme_dispatcher('create_inst', name=str(pop.iname.get()))
+    pop.ilist.delete(0, END)
+    for i in app.scheme.inst:
+        pop.ilist.insert(END, i)
     refresh(app)
 
 def inst_del_final(app, pop):
     app.scheme_dispatcher('del_inst', name=pop.ilist.get(ACTIVE))
+    pop.ilist.delete(0, END)
+    pop.iname.delete(0, END)
+    for i in app.scheme.inst:
+        pop.ilist.insert(END, i)
     refresh(app)
 
-def Clear(app):
-    """clears entry boxes after file change or function call"""
+def refresh(app):
+    inst_select = app.insts.get(ACTIVE)
     app.st.delete(0, END)
     app.end.delete(0, END)
     app.long.delete(0, END)
     app.rhy.delete(0, END)
-
-def refresh(app):
-    inst_select = app.insts.get(ACTIVE)
     app.insts.delete(0, END)
     app.bars.delete(0, END)
     for i in app.scheme.inst:
-        print i
         app.insts.insert(END, i)
         if i == inst_select:
             for m in app.scheme.inst[i]:
