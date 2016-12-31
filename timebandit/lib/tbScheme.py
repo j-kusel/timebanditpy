@@ -99,40 +99,43 @@ class Scheme(object):
                 if abs(newdist) > abs(dist):
                     replica_meas = insure
                 replica_meas.Calc()
-                replica_meas.beatstr = replica_meas.Beat_disp()
 
         replica_meas.Shift(primary_meas.Eval(points[0])+primary_meas.offset, replica_meas.Eval(points[1]))
         #self.alignpop.destroy()
         #self.refresh()
-#_#_#_#_#_#_#_#_#_#_!!!
+
     def pad(self, primary_meas=0, replica_meas=0, points=[]):
-        pm = int(pmstr)
-        ps = int(pslv)
-        if pme=='' or pme=='end':
-            termpt = mstr.timesig-1
-        else:
-            termpt = int(pme)
-        ######
-        slv.Shift(int(integrate.quad(primary_meas.eq,0,ppt)[0])+primary_meas.offset, int(integrate.quad(replica_meas.eq,0,rpt)[0]))
-        # to prepare for aligntest.py code:
+        replica_meas.Shift(int(integrate.quad(primary_meas.eq,0,points[0])[0])+primary_meas.offset, 0)
         tries = 100
         tolerance = 50
+        final = 0
 
-        eq_p = lambda x: (60000/((primary_meas.end-primary_meas.begin)/primary_meas.timesig*x+primary_meas.begin))
-        f_p = integrate.quad(eq_m,primary_point,pme)[0]
+        f_p = primary_meas.Eval(points[1], start=points[0])
+        replica_meas.Calc()
+        f_r = replica_meas.Eval(replica_meas.timesig)
+        dist = abs(f_p) - abs(f_r)
         for i in range(0, tries):
-            eq_r = lambda x: (60000/((replica_meas.end-replica_meas.begin)/replica_meas.timesig*x+replica_meas.begin))
-            f_r = integrate.quad(eq_s,rpt,replica_meas.timesig-1)[0]
-            dist = f_p - f_r
+            insure = replica_meas
+            dist_test = dist
+            dist = abs(f_p) - abs(f_r)
             print dist
+            if final == 1:
+                if abs(dist_test) > abs(dist):
+                    replica_meas = insure
+                    replica_meas.Calc()
+                    break
             if abs(dist)<=tolerance:
-                print "success! new timesig: %f, %d away" % (replica_meas.timesig,dist)
-                break
+                final = 1
+                dist_test = dist
             if dist>0:
                 replica_meas.timesig+=.25
             else:
                 replica_meas.timesig-=.25
+            replica_meas.Calc()
+            f_r = replica_meas.Eval(replica_meas.timesig)
             print "at try %d we are %d away" % (i, dist)
+        print "success! new timesig: %f, %d away" % (replica_meas.timesig,dist)
+           
 
     def normalize(self, instrument=0, measure=0):
         """adjust offsets to shift timecodes relative to selected measure"""

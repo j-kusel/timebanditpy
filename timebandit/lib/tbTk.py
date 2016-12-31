@@ -279,9 +279,10 @@ def pad_final(app, pop):
 #####################
     pm = app.scheme.inst[pop.primarydrop.cget("text")][int(pop.primaryalign.curselection()[0])]
     rm = app.scheme.inst[pop.replicadrop.cget("text")][int(pop.replicaalign.curselection()[0])]
-
+    pts = [pop.primarypivot.get(), pop.primarypivot2.get()]
+    ### add 'start'/'end' crap here
     try:
-        pts = [float(pop.primaryalign.curselection()[0]), float(pop.replicaalign.curselection()[0]), int(pop.primarypivot.get())]
+        pts = [int(i) for i in pts]
         app.scheme_dispatcher('pad', primary_meas=pm, replica_meas=rm, points=pts)
         refresh(app)
         pop.destroy()

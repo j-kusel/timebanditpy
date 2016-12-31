@@ -56,11 +56,10 @@ class Measure:
         self.offset = offset
         self.beats = []
         self.Calc()
-        self.beatstr = self.Beat_disp()
 
     def __str__(self):
         return '{0} to {1}; {2} beats, {3}ms'.format( \
-            self.begin, self.end, self.timesig, self.beats[-1])
+            self.begin, self.end, self.timesig, self.Eval(self.timesig))
 
     def Shift(self, pivot, beat): #started reworking how offset works
         """change measure offset"""
@@ -73,6 +72,7 @@ class Measure:
             (60000/((self.end-self.begin)/self.timesig*x+self.begin))
         self.beats = [int(integrate.quad(self.eq,0,b)[0]) \
                       for b in range(0,int(self.timesig+1))]
+        self.beatstr = self.Beat_disp()
 
     def Beat_disp(self):
         """returns beat info as string"""
