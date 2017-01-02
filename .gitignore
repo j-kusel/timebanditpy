@@ -2,3 +2,4 @@
 *.tb
 *.png
 *.swp
+.DS_Store
