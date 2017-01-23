@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name='timebandit',
-    version='2.1',
+    version='2.2',
     description='polytempo composition suite for python and extensions',
     long_description=readme(),
     classifiers = [
@@ -21,7 +21,7 @@ setup(name='timebandit',
     author='Jordan Kusel',
     author_email='jordankusel@my.unt.edu',
     license='GNU GPLv3+',
-    packages=['timebandit', 'timebandit.apps', 'timebandit.lib'],
+    packages=['timebandit', 'timebandit.apps', 'timebandit.lib', 'timebandit.network'],
     install_requires=[
         'numpy',
         'scipy',

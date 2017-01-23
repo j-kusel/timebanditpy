@@ -1,7 +1,7 @@
 # eventually roll own sockets without having to use pdsend...
 import socket
 import os, sys
-#from timebandit.lib.tbLib import InstManager, Measure
+from timebandit.lib.tbScheme import Scheme
 
 class Server(object):
 
@@ -11,7 +11,7 @@ class Server(object):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print 'socket successfully initialized'
         
-    def bind(self, message='0', ip='localhost'):
+    def bind_pd(self, message='0', ip='localhost'):
         try:
             self.server.bind(('localhost', self.port))
             self.server.listen(10)
@@ -20,12 +20,12 @@ class Server(object):
             print 'bind failed - error {}:{}'.format(str(msg[0]), msg[1])
             sys.exit()
 
-    def send(self, scheme=InstManager()):
+    def send_pd(self, scheme=Scheme()):
         messages = []
         index = 0
-        for inst in scheme:
-            beats = ','.join([m.beats for m in scheme[inst]])
-            messages.append("{}:{}~{}".format(index, inst, beats))
+        for i in scheme.inst:
+            beats = ','.join([','.join([str(s) for s in m.beats]) for m in scheme.inst[i]])
+            messages.append("{}:{}~{}".format(index, i, beats))
             index += 1
         packet = ';'.join(messages)
         print packet
@@ -36,20 +36,3 @@ class Server(object):
                 conn.send(packet)
             finally:
                 conn.close()
-
-       
-
-
-def main():
-
-    HOST = 'localhost'
-    PORT = 7464
-
-    s = Server(port=PORT)
-    s.bind()
-    s.send(message='0:violin~4826,200,300,400,538;1:viola~728,462,3,534')
-
-
-if __name__ == '__main__':
-    main()
-
