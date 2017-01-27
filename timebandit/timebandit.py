@@ -5,6 +5,7 @@ from Tkinter import *
 from tkFileDialog import *
 from lib import tbImg, tbFile, tbTk
 from lib.tbScheme import Scheme
+from network.tbServer import Server
 from collections import OrderedDict
 from PIL import Image, ImageTk
 
@@ -16,7 +17,7 @@ class Application(Frame):
         tbTk.Build_core(self, master)
         
         self.scheme = Scheme()
-        self.server = ''
+        self.server = Server(port=7464)
 
     def New(self):
         """clear all"""
@@ -39,9 +40,8 @@ class Application(Frame):
 
     def pdplay(self):
         if self.server:      
-            for i in self.scheme.inst:
-                part = ' '.join([j.beatstr for j in self.scheme.inst[i]])
-                self.server.send(message=part)
+            self.server.bind_pd()
+            self.server.send_pd(scheme=self.scheme)
 
     def Inst_manager(self):
         self.instpop = Toplevel()
