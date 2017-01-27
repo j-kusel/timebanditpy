@@ -1,3 +1,5 @@
+CFLAGS=-std=gnu99
+
 # The library name
 lib.name = timebandit~
 

@@ -196,11 +196,12 @@ void timebandit_onIPMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv
 
 void timebandit_onListMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     t_atom *list_msg = argv;
-    for (short i = 0; i < argc; i++) {
+    short i;
+    for (i = 0; i < argc; i++) {
         x->arg[i] = (int) atom_getfloat(list_msg + i);
     }
     /*short the_post = 1;
-    for (int i = 0; i < argc; i++) {
+    for (i = 0; i < argc; i++) {
         the_post = (short) atom_getfloat(argv + i);
         post("%d", the_post);
     }*/
@@ -232,7 +233,8 @@ void timebandit_onInstMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *ar
 
 void timebandit_onSchemeMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     t_atom *scheme_msg = argv;
-    for (short i = 0; i < argc; i++) {
+    short i;
+    for (i = 0; i < argc; i++) {
         post("%d", (int) atom_getfloat(scheme_msg+i));
     }
 }
@@ -283,7 +285,8 @@ void *timebandit_new(void) {
     
     inlet_new(&x->obj, &x->obj.ob_pd, gensym("signal"), gensym("signal"));
     struct _inst *inst;
-    for(short i = 0; i < MAX_INSTS; i++) {
+    short i;
+    for(i = 0; i < MAX_INSTS; i++) {
         inst = &x->insts[i];
         inst->name = getbytes(INST_NAME_SIZE);
         inst->beat_index = 0;
