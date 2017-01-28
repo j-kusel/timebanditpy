@@ -48,6 +48,13 @@ typedef struct _timebandit {
     t_object obj;
     t_float x_f;
     t_outlet *out_metro1;
+    t_outlet *out_metro2;
+    
+    t_float *outs[MAX_INSTS];
+    int out_bytes;
+    
+    t_outlet *out_metro[MAX_INSTS];
+    int metro_bytes;
     
     int *arg;
     short arg_store;
@@ -133,7 +140,6 @@ void parse_LinkMsg(t_timebandit *x) {
 }
 
 int beat_increment(struct _inst *inst, int sr) {
-    post("DO WE EVEN GET HERE");
     int dead = 0;
     if (inst->beat_index++ < inst->beat_len) {
         dead = 0;
@@ -143,15 +149,14 @@ int beat_increment(struct _inst *inst, int sr) {
     }
     inst->sample_len = trunc((float) (inst->beats[inst->beat_index] * sr) / 1000.0);
     inst->sample_phase = inst->sample_len;
-    post("increment: index-%d phase-%d beat-%d", inst->beat_index, inst->sample_phase, inst->beats[inst->beat_index]);
     inst->dead = dead;
     return dead;
 }
 
 void timebandit_onBangMsg(t_timebandit *x) {
     /*for (short i = 0; i < x->arg_store; i++) {
-        post("%d %d", i, x->arg[i]);
-    }*/
+     post("%d %d", i, x->arg[i]);
+     }*/
     post("helloworld");
 }
 
@@ -196,15 +201,14 @@ void timebandit_onIPMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv
 
 void timebandit_onListMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     t_atom *list_msg = argv;
-    short i;
-    for (i = 0; i < argc; i++) {
+    for (short i = 0; i < argc; i++) {
         x->arg[i] = (int) atom_getfloat(list_msg + i);
     }
     /*short the_post = 1;
-    for (i = 0; i < argc; i++) {
-        the_post = (short) atom_getfloat(argv + i);
-        post("%d", the_post);
-    }*/
+     for (int i = 0; i < argc; i++) {
+     the_post = (short) atom_getfloat(argv + i);
+     post("%d", the_post);
+     }*/
     x->arg_store = argc;
     post("phew");
 }
@@ -213,12 +217,12 @@ void timebandit_onInstMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *ar
     t_atom *inst_msg = argv;
     if (argc > 2) {
         short i;
-        short inst_index = (int) atom_getfloat(inst_msg + 1);
+        int inst_index = (int) atom_getfloat(inst_msg);
+        post("%d inst", inst_index);
         struct _inst *inst = &x->insts[inst_index]; // the first argument is the instrument index
         
         atom_string(inst_msg + 1, inst->name, inst->name_bytes);
         
-        post("%s", x->insts[inst_index].name);
         for (i = 2; i < argc; i++) {
             inst->beats[i - 2] = (int) atom_getfloat(inst_msg + i);
             inst->dead = 0;
@@ -233,8 +237,7 @@ void timebandit_onInstMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *ar
 
 void timebandit_onSchemeMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     t_atom *scheme_msg = argv;
-    short i;
-    for (i = 0; i < argc; i++) {
+    for (short i = 0; i < argc; i++) {
         post("%d", (int) atom_getfloat(scheme_msg+i));
     }
 }
@@ -244,14 +247,15 @@ void timebandit_free(t_timebandit *x) {
     freebytes(x->insts, sizeof(struct _inst) * MAX_INSTS);
     freebytes(x->ip, IP_SIZE);
     outlet_free(x->out_metro1);
+    outlet_free(x->out_metro2);
 }
 
 void timebandit_tilde_setup(void) {
     timebandit_class = class_new(gensym("timebandit~"),
-                            (t_newmethod)timebandit_new,
-                            (t_method)timebandit_free,
-                            sizeof(t_timebandit),
-                            0, 0);
+                                 (t_newmethod)timebandit_new,
+                                 (t_method)timebandit_free,
+                                 sizeof(t_timebandit),
+                                 0, 0);
     CLASS_MAINSIGNALIN(timebandit_class, t_timebandit, x_f);
     class_addmethod(timebandit_class, (t_method)timebandit_dsp, gensym("dsp"), 0);
     class_addmethod(timebandit_class, (t_method)timebandit_onBangMsg, gensym("bang"), 0);
@@ -272,12 +276,16 @@ void *timebandit_new(void) {
     x->arg_len = MAX_BEATS * sizeof(int);
     x->arg = (int *) getbytes(x->arg_len);
     
+    //short p;
+    /*x->out_bytes = MAX_INSTS * sizeof(t_float *);
+    x->outs = (t_float *) getbytes(x->out_bytes);*/
+    
     x->port = DEFAULT_PORT;
     x->ip = getbytes(IP_SIZE);
     x->sample_test = 44100;
     
     x->sr = 44100;
-
+    
     strcpy(x->ip, DEFAULT_IP);
     
     //x->insts = (struct _inst *) getbytes(sizeof(struct _inst) * MAX_INSTS);
@@ -285,8 +293,7 @@ void *timebandit_new(void) {
     
     inlet_new(&x->obj, &x->obj.ob_pd, gensym("signal"), gensym("signal"));
     struct _inst *inst;
-    short i;
-    for(i = 0; i < MAX_INSTS; i++) {
+    for(short i = 0; i < MAX_INSTS; i++) {
         inst = &x->insts[i];
         inst->name = getbytes(INST_NAME_SIZE);
         inst->beat_index = 0;
@@ -299,7 +306,9 @@ void *timebandit_new(void) {
         post("inst %s", inst->name);
         outlet_new(&x->obj, gensym("signal"));
     }
-    x->out_metro1 = outlet_new(&x->obj, &s_bang);
+    for(short i = 0; i < MAX_INSTS; i++) {
+        x->out_metro[i] = outlet_new(&x->obj, &s_bang);
+    }
     return x;
 }
 
@@ -307,27 +316,39 @@ void timebandit_dsp(t_timebandit *x, t_signal **sp) {
     if (x->sr != sp[0]->s_sr && sp[0]->s_sr) { // if sampling rate changes
         x->sr = (int) sp[0]->s_sr;
     }
-    dsp_add(timebandit_perform, 5, x, sp[0]->s_vec, sp[1]->s_vec, sp[2]->s_vec, sp[0]->s_n); // pg 29
+    dsp_add(timebandit_perform, 12, x, sp[0]->s_vec, sp[1]->s_vec, sp[2]->s_vec, sp[3]->s_vec, sp[4]->s_vec, sp[5]->s_vec, sp[6]->s_vec, sp[7]->s_vec, sp[8]->s_vec, sp[9]->s_vec, sp[0]->s_n); // pg 29
 }
 
 t_int *timebandit_perform(t_int *w) {
     t_timebandit *x = (t_timebandit *) (w[1]);
     //t_float *in = (t_float *) (w[2]);
     //t_float *in2 = (t_float *) (w[3]);
-    t_float *out = (t_float *) (w[4]);
-    t_int n = w[5];
+    
+    short o;
+    for (o = 0; o < MAX_INSTS; o++) {
+        x->outs[o] = (t_float *) (w[o + 4]);
+    }
+    //t_float *testout = (t_float *) (w[3]);
+    //x->outs[0] = (t_float *) (w[4]);
+    t_int n = w[12];
     
     t_float sig = 0.0;
     //float pre_sig = 0.0;
     
     
     
-    struct _inst *inst = &x->insts[0];
-    long sample_phase = inst->sample_phase;
-    long sample_len = inst->sample_len;
+    struct _inst *inst;
+    long sample_phase;
+    long sample_len;
     short the_bang = 0;
+    
     while(n--) {
         //while (! inst->dead) {
+        for (o = 0; o < MAX_INSTS; o++) {
+            //*testout++ = (t_float) 1.3;
+            inst = &x->insts[o];
+            sample_phase = inst->sample_phase;
+            sample_len = inst->sample_len;
             if (! sample_phase--) { // descending phasor samples
                 beat_increment(inst, x->sr);
                 sample_len = inst->sample_len;
@@ -335,39 +356,19 @@ t_int *timebandit_perform(t_int *w) {
                 sig = (t_float) 0.0;
                 the_bang = 1;
             } else {
-        /*if (inst->phase++ >= (x->sr / 1000.0 * (float) inst->beats[inst->beat_index])) {
-            inst->phase = 0;
-            if (inst->beat_index++ >= inst->beat_len) {
-                inst->beat_index = 0;
-            }
-            post("%d", inst->beats[inst->beat_index]);
-        }
-        if ((float) inst->beats[inst->beat_index] <= 0.00000001) { // prevent a divide-by-zero error;
-            sig = 0.0;
-        } else {
-            pre_sig = ((float) inst->phase / (float) inst->beats[inst->beat_index] * (float) x->sr / 1000.0 * 2.0) - 1.0; // calc + translate phasor samples
-            sig = (pre_sig > 0.000001) ? pre_sig: 0; // prevent computing miniscule signals
-        }*/
-        /*if (sig >= 1.0 || sig <= -1.0) {
-            beat_increment(inst, x->sr);
-            post("beat change %d", inst->beats[inst->beat_index]);
-            sig = (t_float) 0.0;
-        }*/
                 sig = (t_float) ((float) sample_phase / (float) sample_len);
-            //}
             }
-        //}
-        //}
-        //}
-        
-        *out++ = sig;
-        if (the_bang) {
-            outlet_bang(x->out_metro1);
-            the_bang = 0;
+
+            *x->outs[o]++ = sig;
+            if (the_bang) {
+                outlet_bang(x->out_metro[o]);
+                the_bang = 0;
+            }
+            inst->sample_phase = sample_phase;
+            inst->sample_len = sample_len;
         }
     }
-    inst->sample_phase = sample_phase;
-    return w + 6;
+    return w + 13;
     //post("%d", sig);
 }
 
