@@ -154,7 +154,8 @@ int beat_increment(struct _inst *inst, int sr) {
 }
 
 void timebandit_onBangMsg(t_timebandit *x) {
-    /*for (short i = 0; i < x->arg_store; i++) {
+    /*short i;
+    for (i = 0; i < x->arg_store; i++) {
      post("%d %d", i, x->arg[i]);
      }*/
     post("helloworld");
@@ -201,7 +202,8 @@ void timebandit_onIPMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv
 
 void timebandit_onListMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     t_atom *list_msg = argv;
-    for (short i = 0; i < argc; i++) {
+    short i;
+    for (i = 0; i < argc; i++) {
         x->arg[i] = (int) atom_getfloat(list_msg + i);
     }
     /*short the_post = 1;
@@ -237,7 +239,8 @@ void timebandit_onInstMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *ar
 
 void timebandit_onSchemeMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     t_atom *scheme_msg = argv;
-    for (short i = 0; i < argc; i++) {
+    short i;
+    for (i = 0; i < argc; i++) {
         post("%d", (int) atom_getfloat(scheme_msg+i));
     }
 }
@@ -293,7 +296,8 @@ void *timebandit_new(void) {
     
     inlet_new(&x->obj, &x->obj.ob_pd, gensym("signal"), gensym("signal"));
     struct _inst *inst;
-    for(short i = 0; i < MAX_INSTS; i++) {
+    short i;
+    for(i = 0; i < MAX_INSTS; i++) {
         inst = &x->insts[i];
         inst->name = getbytes(INST_NAME_SIZE);
         inst->beat_index = 0;
@@ -306,7 +310,7 @@ void *timebandit_new(void) {
         post("inst %s", inst->name);
         outlet_new(&x->obj, gensym("signal"));
     }
-    for(short i = 0; i < MAX_INSTS; i++) {
+    for(i = 0; i < MAX_INSTS; i++) {
         x->out_metro[i] = outlet_new(&x->obj, &s_bang);
     }
     return x;
