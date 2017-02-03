@@ -19,11 +19,12 @@
 #define MAX_BEATS 1024
 #define MAX_INSTS 8
 
-#define DEFAULT_IP      "127.0.0.1"
-#define IP_SIZE         16
-#define DEFAULT_PORT    8500
-#define SOCKET_SIZE     1024
-#define INST_NAME_SIZE  32
+#define DEFAULT_IP          "127.0.0.1"
+#define IP_SIZE             16
+#define DEFAULT_PORT        8500
+#define SOCKET_SIZE         1024
+#define PING_SAMPLE_TIME    44100             // how frequently to ping the python server
+#define INST_NAME_SIZE      32
 
 static t_class *timebandit_class;
 
@@ -47,8 +48,6 @@ struct _inst {
 typedef struct _timebandit {
     t_object obj;
     t_float x_f;
-    t_outlet *out_metro1;
-    t_outlet *out_metro2;
     
     t_float *outs[MAX_INSTS];
     int out_bytes;
@@ -66,11 +65,14 @@ typedef struct _timebandit {
     struct _inst insts[MAX_INSTS];
     
     int socket_desc;
+    void *socket_clock;
     short port;
     char *ip;
     unsigned int ip_bytes;
     char remote[SOCKET_SIZE];
     struct sockaddr_in server;
+    short connected;
+    short ping_counter;
 } t_timebandit;
 
 void *timebandit_new(void);
@@ -80,6 +82,11 @@ void timebandit_onLinkMsg(t_timebandit *x);//, t_symbol *msg, short argc, t_atom
 void timebandit_onListMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv);
 void timebandit_onPortMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv);
 void timebandit_onIPMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv);
+void timebandit_onRecvMsg(t_timebandit *x);
+void timebandit_onLinkTestMsg(t_timebandit *x);
+void timebandit_onHandshakeMsg(t_timebandit *x);
+
+void check_socket(t_timebandit *x);
 
 void parse_LinkMsg(t_timebandit *x);
 void parse_Inst(t_timebandit *x, char *remote);
@@ -88,6 +95,17 @@ void parse_Beats(struct _inst *inst, char *remote);
 int beat_increment(struct _inst *inst, int sr);
 
 t_int *timebandit_perform(t_int *w);
+
+void check_socket(t_timebandit *x) {
+    post("did we make it?");
+    timebandit_onHandshakeMsg(x);
+    /*if (recv(x->socket_desc, x->remote, SOCKET_SIZE, 0) < 0) {
+        post("[timebandit~ ]: read from socket %s:%d failed", DEFAULT_IP, DEFAULT_PORT);
+    } else { //#########################
+        post("%s", x->remote);
+        //parse_LinkMsg(x);
+    }*/
+}
 
 void parse_Inst(t_timebandit *x, char *remote) {
     char *token = remote;
@@ -173,13 +191,25 @@ void timebandit_onLinkMsg(t_timebandit *x) {
     
     if (connect(x->socket_desc, (struct sockaddr *) &x->server, sizeof(x->server)) < 0) {
         post("[timebandit~ ]: error connecting to remote server");
+        x->connected = 1;
+    } else {
+        x->connected = 0;
     }
-    if (recv(x->socket_desc, x->remote, SOCKET_SIZE, 0) < 0) {
+    /*if (recv(x->socket_desc, x->remote, SOCKET_SIZE, 0) < 0) {
         post("[timebandit~ ]: read from socket %s:%d failed", DEFAULT_IP, DEFAULT_PORT);
     }
     post("%s", x->remote);
     parse_LinkMsg(x);
-    close(x->socket_desc);
+    close(x->socket_desc);*/
+}
+
+void timebandit_onRecvMsg(t_timebandit *x) {
+    if (recv(x->socket_desc, x->remote, SOCKET_SIZE, 0) < 0) {
+        post("[timebandit~ ]: read from socket %s:%d failed", DEFAULT_IP, DEFAULT_PORT);
+    } else {
+        post("%s", x->remote);
+        parse_LinkMsg(x);
+    }
 }
 
 void timebandit_onPortMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
@@ -215,6 +245,43 @@ void timebandit_onListMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *ar
     post("phew");
 }
 
+void timebandit_onLinkTestMsg(t_timebandit *x) {
+    x->socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+    if (x->socket_desc == -1) {
+        post("[timebandit~ ]: error creating socket");
+    }
+    
+    x->server.sin_addr.s_addr = inet_addr(x->ip);
+    x->server.sin_family = AF_INET;
+    x->server.sin_port = htons(x->port);
+    
+    if (connect(x->socket_desc, (struct sockaddr *) &x->server, sizeof(x->server)) < 0) {
+        post("[timebandit~ ]: error connecting to remote server");
+        x->connected = 0;
+    } else {
+        x->connected = 1;
+        /*if (recv(x->socket_desc, x->remote, SOCKET_SIZE, 0) < 0) {
+            post("[timebandit~ ]: read from socket %s:%d failed", DEFAULT_IP, DEFAULT_PORT);
+        } else {
+            post("%s", x->remote);
+        }*/
+    }
+}
+
+void timebandit_onHandshakeMsg(t_timebandit *x) {
+    if (x->connected) {
+        if(send(x->socket_desc, "handshake", strlen("handshake"), 0) < 0) {
+            post("send failed");
+            x->connected = 0;
+        } else if(recv(x->socket_desc, x->remote, SOCKET_SIZE, 0) < 0) {
+            post("recv failed");
+            x->connected = 0;
+        } else {
+            post("%s", x->remote);
+        }
+    }
+}
+
 void timebandit_onInstMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     t_atom *inst_msg = argv;
     if (argc > 2) {
@@ -246,11 +313,17 @@ void timebandit_onSchemeMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *
 }
 
 void timebandit_free(t_timebandit *x) {
+    if (x->connected) {
+        close(x->socket_desc);
+    }
     freebytes(x->arg, x->arg_len);
     freebytes(x->insts, sizeof(struct _inst) * MAX_INSTS);
     freebytes(x->ip, IP_SIZE);
-    outlet_free(x->out_metro1);
-    outlet_free(x->out_metro2);
+    short i;
+    for (i = 0; i < MAX_INSTS; i++) {
+        outlet_free(x->out_metro[i]);
+    }
+    clock_free(x->socket_clock);
 }
 
 void timebandit_tilde_setup(void) {
@@ -267,8 +340,12 @@ void timebandit_tilde_setup(void) {
     class_addmethod(timebandit_class, (t_method)timebandit_onInstMsg, gensym("inst"), A_GIMME, 0);
     class_addmethod(timebandit_class, (t_method)timebandit_onPortMsg, gensym("port"), A_GIMME, 0);
     class_addmethod(timebandit_class, (t_method)timebandit_onIPMsg, gensym("ip"), A_GIMME, 0);
+    class_addmethod(timebandit_class, (t_method)timebandit_onRecvMsg, gensym("recv"), 0);
     
     class_addmethod(timebandit_class, (t_method)timebandit_onSchemeMsg, gensym("scheme"), A_GIMME, 0);
+    
+    class_addmethod(timebandit_class, (t_method) timebandit_onHandshakeMsg, gensym("handshake"), 0);
+    class_addmethod(timebandit_class, (t_method)timebandit_onLinkTestMsg, gensym("listtest"), 0);
     
     post("[timebandit~ ]: http://github.com/ultraturtle0/timebandit.git");
 }
@@ -285,6 +362,8 @@ void *timebandit_new(void) {
     
     x->port = DEFAULT_PORT;
     x->ip = getbytes(IP_SIZE);
+    x->ping_counter = PING_SAMPLE_TIME;
+    x->connected = 0;
     x->sample_test = 44100;
     
     x->sr = 44100;
@@ -292,7 +371,7 @@ void *timebandit_new(void) {
     strcpy(x->ip, DEFAULT_IP);
     
     //x->insts = (struct _inst *) getbytes(sizeof(struct _inst) * MAX_INSTS);
-    
+    x->socket_clock = clock_new(x, (t_method) check_socket);
     
     inlet_new(&x->obj, &x->obj.ob_pd, gensym("signal"), gensym("signal"));
     struct _inst *inst;
@@ -339,17 +418,24 @@ t_int *timebandit_perform(t_int *w) {
     t_float sig = 0.0;
     //float pre_sig = 0.0;
     
-    
-    
     struct _inst *inst;
     long sample_phase;
     long sample_len;
     short the_bang = 0;
+    short ping_counter = x->ping_counter;
+    //char last_remote[SOCKET_SIZE];
+    //strcpy(last_remote, x->remote);
     
     while(n--) {
         //while (! inst->dead) {
+        if (! ping_counter-- && x->connected) {
+            clock_delay(x->socket_clock, 0);
+            ping_counter = PING_SAMPLE_TIME;
+        }
+        if (x->connected) {
+            
+        }
         for (o = 0; o < MAX_INSTS; o++) {
-            //*testout++ = (t_float) 1.3;
             inst = &x->insts[o];
             sample_phase = inst->sample_phase;
             sample_len = inst->sample_len;
@@ -366,12 +452,14 @@ t_int *timebandit_perform(t_int *w) {
             *x->outs[o]++ = sig;
             if (the_bang) {
                 outlet_bang(x->out_metro[o]);
+                //clock_delay(bang_clock(x->out_metro[o]), 0);
                 the_bang = 0;
             }
             inst->sample_phase = sample_phase;
             inst->sample_len = sample_len;
         }
     }
+    x->ping_counter = ping_counter;
     return w + 13;
     //post("%d", sig);
 }
