@@ -1,15 +1,21 @@
 # eventually roll own sockets without having to use pdsend...
+# edit: ROLLING OUR OWN SOCKETS BOOYAH
 import socket, select, thread
 import os, sys, time
 import Queue
 #from timebandit.lib.tbScheme import Scheme
 
+
 class Server(object):
 
-    def __init__(self, sockets={'127.0.0.1': 0,}, port=7654):
+    def __init__(self, sockets={'127.0.0.1': 0,}, port=7654, scheme=0):
         self.socket_list = sockets
         self.port = port
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.queues = {}
+        self.inst_bind = {}
+        #if scheme:
+            
         print 'socket successfully initialized'
         
     def bind_pd(self, message='0', ip='localhost'):
@@ -63,7 +69,6 @@ def link():
 
     inputs = [s.server]
     outputs = []
-    message_queues = {}
     instances = []
 
     while inputs:
@@ -76,13 +81,13 @@ def link():
                 conn.setblocking(0)
                 inputs.append(conn)
 
-                message_queues[conn] = Queue.Queue()
+                s.queues[conn] = Queue.Queue()
 
             else:
                 data = sock.recv(1024)
-                if data:
+                if data == 'ready':
                     print 'received %s from %s' % (data, sock.getpeername())
-                    message_queues[sock].put(data)
+                    s.queues[sock].put('ping')#data)
                     if sock not in outputs:
                         outputs.append(sock)
                 else:
@@ -94,11 +99,11 @@ def link():
                     sock.close()
 
                     # remove message queue
-                    del message_queues[sock]
+                    del s.queues[sock]
 
         for sock in writable:
             try:
-                next_msg = message_queues[sock].get_nowait()
+                next_msg = s.queues[sock].get_nowait()
             except Queue.Empty:
                 # no messages waiting! stop checking if writable
                 print 'output queue for', sock.getpeername(), 'is empty'
@@ -115,7 +120,7 @@ def link():
                 outputs.remove(sock)
             sock.close()
 
-            del message_queues[sock]
+            del s.queues[sock]
 
     # s.server.close()
 
