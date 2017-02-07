@@ -1,8 +1,7 @@
 import socket, sys, time
 
 tbsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-port = 7464
-
+port = 8100
 
 #try:
 print tbsock.connect(('localhost', port))
