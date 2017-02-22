@@ -3,12 +3,18 @@ from node import Node
 import select
 import Queue
 import time
+import threading
 
-class Relay(object):
+class Relay(threading.Thread):
     
     def __init__(self):
         self.router = {}
         self.nodes = {}
+
+        self._stopevent = threading.Event()
+        self._sleepperiod = 1.0
+
+        threading.Thread.__init__(self, name="timebandit")
 
     def new(self, inst=0, IP='localhost', PORT=7464):
         """add a fresh Instrument to the Server - takes Instrument, IP, PORT"""
@@ -33,37 +39,34 @@ class Relay(object):
             n.queue.put(msg)
             print n.queue
 
-    def monitor(self):
-        inputs = [n.conn for n in self.nodes.values()]
-        outputs = []
-        print inputs
+    def run(self):
+        self.inputs = [n.conn for n in self.nodes.values()]
+        self.outputs = []
 
-        while inputs:
-            readable, writable, exceptional = select.select(inputs, outputs, inputs)
-            print 'loop top: ', readable, writable
+        
+        while not self._stopevent.isSet() and self.inputs:
+            time.sleep(0.05)
+            readable, writable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
             for conn in readable: # if node can be read,
-                print 'readable start'
                 node = self.nodes[conn]
                 data = conn.recv(1024) # read the node state message
-                print 'read successful'
-                if data:
-                    print 'received %s from %s' % (data, node)
+                node.state = data
+                if data == 'ready\x00':
+                    print "ok it's ready"
                     node.state = data
-                    if data == 'ready':# and conn not in outputs:
-                        outputs.append(conn) # make 'ready' nodes available
-                        print 'append to outputs successful'
-                    elif data == 'error':
-                        print 'remote error detected at node {}, attempting reconnect...'.format(node)
-                        node.connect()
-                    else:
-                        print node.state
-                        outputs.remove(conn)
-                        inputs.remove(conn)
-                        node.kill()
-            print 'loop middle: ', readable, writable
+                    #if conn not in self.outputs:
+                    self.outputs.append(conn) # make 'ready' nodes available
+                if data == 'error':
+                    print 'remote error detected at node {}, attempting reconnect...'.format(node)
+                    #node.connect()
+                    if conn in self.outputs:
+                        self.outputs.remove(conn)
+                    self.inputs.remove(conn)
+                    node.kill()
+
+
             for conn in writable:
                 node = self.nodes[conn]
-                print 'do we even enter the writable loop?'
                 try:
                     message = node.queue.get_nowait()
                     print 'sending %s to %s' % (message, node)
@@ -71,32 +74,32 @@ class Relay(object):
 
                 except Queue.Empty:
                     # no messages waiting! stop checking if writable
-                    print 'output queue for', node, 'is empty'
-                    conn.send('standby')
-                    outputs.remove(conn)
+                    # conn.send('standby')
+                    #self.outputs.remove(conn)
+                    # RESTORE THIS IF PROCESSING/READY MUTEX IMPLEMENTED
+                    pass
                     
             for conn in exceptional:
                 node = self.nodes[conn]
                 print 'handling exceptional condition for', node
                 # stop listening for input
-                inputs.remove(conn)
-                if conn in outputs:
-                    outputs.remove(conn)
+                self.inputs.remove(conn)
+                if conn in self.outputs:
+                    self.outputs.remove(conn)
                 # shut down thread here
                 try:
                     node.retry()
                 except:
                     print "retry failed, manually re-add node with the 'new' command"
                     node.kill()
+        try:
+            for node in self.nodes.values():
+                node.kill()
+        except:
+            print 'error killing nodes'
 
 def test():
-    r = Relay()
-    r.new(inst='violaah', PORT=8100)
-    r.new(inst='violiiiin', PORT=8101)
-    r.command(inst='violaah', msg='hooray it works')
-    time.sleep(5)
-    r.command(inst='violiiiin', msg='OMG M-M-M-M-MONSTER KILL')
-    r.monitor()
+    pass
 
 if __name__ == '__main__':
     test()

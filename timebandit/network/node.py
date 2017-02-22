@@ -16,6 +16,7 @@ class Node(object):
         self.state = 'empty'
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
+            #self.server.setblocking(1)
             self.server.bind((self.IP, self.PORT))
             self.server.listen(10)
         except socket.error as msg:
@@ -35,12 +36,9 @@ class Node(object):
             print 'connect a local or remote timebandit~ external'
             self.conn, self.addr = self.server.accept()
             print 'timebandit~ external found at: {}'.format(self.addr)
-            self.conn.send('handshake')
-            self.state = self.conn.recv(1024)
         except socket.error as msg:
             print 'timebandit~ connect failure - error {}:{}'.format(str(msg[0]), msg[1])
             self.kill()
             self.state = 'failed'
         finally:
-            print self.state
             return self.state # 'ready' if successful, 'failed' if socket.error

@@ -85,7 +85,8 @@ def link():
 
             else:
                 data = sock.recv(1024)
-                if data == 'ready':
+                print data
+                if data:
                     print 'received %s from %s' % (data, sock.getpeername())
                     s.queues[sock].put('ping')#data)
                     if sock not in outputs:
@@ -143,8 +144,40 @@ def test():
     except socket.error as msg:
         print 'bind failed - error {}:{}'.format(str(msg[0]), msg[1])
         sys.exit()
+    while(True):
+            try:
+                conn, addr = s.server.accept()
+                print 'Connected with {}:{}'.format(addr[0], addr[1])
+                time.sleep(1)
+                conn.send("super test!")
+            finally:
+                conn.close()
 
 
 
 if __name__ == '__main__':
     link()
+    sys.exit()
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #s.setblocking(0)
+    s.bind(('localhost', 7464))
+    s.listen(10)
+    n = 0
+    message = "handshake"
+    success = 0
+    while(True):
+        try:
+            conn, addr = s.accept()
+            print 'Connected with {}:{}'.format(addr[0], addr[1])
+            time.sleep(1)
+            if success:
+                n+=1
+                if n >= len(message):
+                    n = 0
+
+            conn.send(message[n])
+            success = conn.recv(1024)
+            print success
+        finally:
+            conn.close()
+
