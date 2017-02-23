@@ -1,4 +1,6 @@
 from tbLib import InstManager, Measure, Rhythm
+from network.relay import Relay
+import threading
 from scipy import integrate
 import tbImg
 
@@ -144,3 +146,25 @@ class Scheme(object):
         for i in self.inst:
             for m in self.inst[i]:
                 m.offset += off
+
+    def start_server(self, ports=[]):
+        if ports and self.inst:
+            self.server = Relay()
+            n = 0
+            for i in self.inst:
+                p = ports[n][0]
+                print "binding {} to address {}:{}".format(i, 'localhost', p)
+                self.server.new(inst=i, IP='localhost', PORT=p)
+                for m in self.inst[i]:
+                    beats = [m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))]
+                    comm = "inst {} {}".format(n, " ".join([str(b) for b in beats]))
+                    self.server.command(inst=i, msg=comm)
+                n += 1
+            self.server.start()
+
+    def end_server(self):
+        self.server.cleanup()
+        if self.server.status == 'offline': 
+            self.server.join()
+
+ 

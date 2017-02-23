@@ -17,7 +17,6 @@ class Application(Frame):
         tbTk.Build_core(self, master)
         
         self.scheme = Scheme()
-        self.server = Server(port=7464)
 
     def New(self):
         """clear all"""
@@ -32,39 +31,22 @@ class Application(Frame):
         except:
             traceback.print_exc()
 
-    def Build_server(self):
-        """open a socket to remote pure data clients"""
-        from network.server import Server
-        self.server = Server()
-        self.server.send(message='test')
-
-    def pdplay(self):
-        if self.server:      
-            self.server.bind_pd()
-            self.server.send_pd(scheme=self.scheme)
-
     def Inst_manager(self):
         self.instpop = Toplevel()
         tbTk.Build_inst(self, self.instpop)
 
     def Save(self):
-        tbFile.save(self.inst)
+        tbFile.save(self.scheme)
 
     def Load(self, merge=0):
-        instinsure = self.inst
-        ld = tbFile.load()
-        if (ld):
-            if merge==0:
-                self.inst = InstManager()
-                self.insts.delete(0, END)
-                self.bars.delete(0, END)
-            for i in ld:
-                print 'ld=', i
-                newmeas = Measure(i[0], i[1],i[2],float(i[3]),i[4])
-                self.inst[i[0]] += newmeas
+        new_scheme = tbFile.load()
+        if new_scheme:
+            self.scheme = new_scheme
+            self.insts.delete(0, END)
+            self.bars.delete(0, END)
+            tbTk.refresh(self)
         else:
-            self.inst = instinsure
-        tbTk.refresh(self)
+            print "error: file load failed"
 
     def Merge(self): 
         ## good candidate for a decorator?!

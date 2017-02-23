@@ -10,6 +10,7 @@ class Relay(threading.Thread):
     def __init__(self):
         self.router = {}
         self.nodes = {}
+        self.status = 'standby'
 
         self._stopevent = threading.Event()
         self._sleepperiod = 1.0
@@ -42,7 +43,7 @@ class Relay(threading.Thread):
     def run(self):
         self.inputs = [n.conn for n in self.nodes.values()]
         self.outputs = []
-
+        self.status = 'online'
         
         while not self._stopevent.isSet() and self.inputs:
             time.sleep(0.05)
@@ -92,11 +93,20 @@ class Relay(threading.Thread):
                 except:
                     print "retry failed, manually re-add node with the 'new' command"
                     node.kill()
+
+        while (self.status == 'offline'):
+            # wait for thread to join
+            time.sleep(5)
+
+    def cleanup(self):
         try:
             for node in self.nodes.values():
                 node.kill()
         except:
             print 'error killing nodes'
+        self.status = 'offline'
+        self._stopevent.set()
+        
 
 def test():
     pass

@@ -1,12 +1,14 @@
 from Tkinter import *
 from tkFileDialog import *
+from tbScheme import Scheme
+from tbLib import Measure
 
-
-def save(theinsts):
+def save(scheme=0):
     """write all measures to textfile, takes schema list as argument."""
     thefile = asksaveasfilename(defaultextension='.tb')
     if thefile is None:
         pass
+    theinsts = scheme.inst
     pak = []
     schstr = []
     for i in theinsts:
@@ -21,7 +23,7 @@ def save(theinsts):
     with open(thefile, 'w') as f:
         f.writelines([x+"\n" for x in pak])
 
-def load():
+def load(merge=0):
     """return 2d array of for measure initialization."""
     thefile = open(askopenfilename(), "r")
     finallines = []
@@ -33,4 +35,13 @@ def load():
             print("ERROR: file corruption")
             return 0
     thefile.close()
-    return finallines
+
+    if merge==0:
+        new_scheme = Scheme()
+        for i in finallines:
+            newmeas = Measure(i[0], i[1],i[2],i[3],i[4])
+            new_scheme.inst[i[0]] += newmeas
+        return new_scheme
+    else:
+        print 'merge feature not available yet'
+        return 0

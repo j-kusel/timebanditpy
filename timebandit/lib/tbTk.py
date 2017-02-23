@@ -19,12 +19,12 @@ def Build_core(app, master):
     app.menubar.add_cascade(label='edit', menu=menu)
     menu.add_command(label='add inst...', command=(lambda: Build_inst(app)))
     menu.add_command(label='align...', command=(lambda: Build_align(app)))
-    #menu.add_command(label='evaluate...', command=app.rhyeval)
+    #menu.add_command(label='evaluate...', command=(lambda: Build_network(app)))
     menu.add_command(label='preferences...')
 
     menu = Menu(app.menubar, tearoff=0)
     app.menubar.add_cascade(label='playback', menu=menu)
-    menu.add_command(label='play!', command=app.pdplay)
+    menu.add_command(label='network...', command=(lambda: Build_network(app)))
 
     master.configure(menu=app.menubar)
 
@@ -74,8 +74,8 @@ def Build_core(app, master):
     app.alignbut = Button(app, text='align...', command=(lambda: Build_align(app)))
     app.alignbut.grid(row=1, column=3)
 
-    app.playbut = Button(app, text='play!', command=app.pdplay)
-    app.playbut.grid(row=2, column=2)
+    app.netbut = Button(app, text='network...', command=(lambda: Build_network(app)))
+    app.netbut.grid(row=2, column=2)
 
     app.printbut = Button(app, text='print...', command=(lambda: Build_img(app)))
     app.printbut.grid(row=2, column=3)
@@ -194,6 +194,32 @@ def Build_align(app):
     pop.chend.grid(row=1, column=6)
     pop.statlab.grid(row=2, column=6)
     pop.static.grid(row=3, column=6)
+
+def Build_network(app):
+    pop = Toplevel()
+    pop.title('network')
+    pop.insts = []
+    pop.ports = []
+    i = 0
+    for inst in app.scheme.inst:
+        print inst + 'network build'
+        pop.insts.append(Label(pop, text=inst))
+        pop.insts[i].grid(row=i, column=0)
+        pop.ports.append(Entry(pop))
+        pop.ports[i].grid(row=i, column=1)
+        pop.ports[i].insert(0, str(8100+i))
+        i += 1
+    pop.server = Button(pop, text="start server", command = (lambda: start_network(app, pop)))
+    pop.server.grid(row=0, column=2)
+    pop.kill = Button(pop, text="disconnect server", command = (lambda: end_network(app, pop)))
+    pop.kill.grid(row=1, column=2)
+
+def start_network(app, pop):
+    ports = [[int(i) for i in str(p.get()).split()] for p in pop.ports]
+    app.scheme.start_server(ports=ports)        
+
+def end_network(app, pop):
+    app.scheme.end_server()
 
 def create_final(app):
     inst = app.insts.get(ACTIVE)
