@@ -28,8 +28,12 @@ class Node(object):
         return "external at {} - status: {}".format(self.addr, self.state)
 
     def kill(self):
-        self.conn.close()
-        self.queue = Queue.Queue()
+        try:
+            self.conn.shutdown(socket.SHUT_RDWR)
+            self.conn.close()
+            self.queue = Queue.Queue()
+        except socket.error as msg:
+            print 'node shutdown failure - error {}:{}'.format(str(msg[0]), msg[1])
 
     def connect(self):
         try:
@@ -38,7 +42,8 @@ class Node(object):
             print 'timebandit~ external found at: {}'.format(self.addr)
         except socket.error as msg:
             print 'timebandit~ connect failure - error {}:{}'.format(str(msg[0]), msg[1])
-            self.kill()
+            if self.conn:
+                self.kill()
             self.state = 'failed'
         finally:
             return self.state # 'ready' if successful, 'failed' if socket.error

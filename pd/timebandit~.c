@@ -65,7 +65,7 @@ typedef struct _timebandit {
     t_float *outs[MAX_INSTS];
     int out_bytes;
     
-    t_outlet *out_metro[MAX_INSTS];
+    t_outlet *out_metro;
     int metro_bytes;
     
     int *arg;
@@ -79,6 +79,8 @@ typedef struct _timebandit {
     short inst_len;
     
     pthread_t socket_thread;
+    short thread_sig;
+    
     int socket_desc;
     int *socket;
     void *socket_clock;
@@ -89,6 +91,8 @@ typedef struct _timebandit {
     struct sockaddr_in server;
     short state;
     short ping_counter;
+    
+    //pthread_mutex_t mtx;
     
     short queue;
     
@@ -110,15 +114,12 @@ void timebandit_onStopMsg(t_timebandit *x);
 void timebandit_onPlayMsg(t_timebandit *x);
 void timebandit_onPauseMsg(t_timebandit *x);
 
-void handshake(t_timebandit *x);
 static void *check_socket(void *x);
-void testparse(t_timebandit *x);
+void socket_cleanup(int *sock, short *state);
+static void thread_cleanup(void *tb);
+
 void transport_reset(t_timebandit *x);
 void dispatcher(t_timebandit *x);
-
-void parse_LinkMsg(t_timebandit *x);
-void parse_Inst(t_timebandit *x, char *remote);
-void parse_Beats(struct _inst *inst, char *remote);
 
 int dp_Play(t_timebandit *x);
 int dp_Pause(t_timebandit *x);
@@ -131,12 +132,10 @@ int beat_increment(struct _inst *inst, int sr);
 t_int *timebandit_perform(t_int *w);
 
 void *check_socket(void *x) {
-    int *oldstate;
-    int *oldtype;
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, oldstate);
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, oldtype);
-    
     t_timebandit *tb = (t_timebandit *) x;
+    int *oldstate;
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, oldstate);
+    
     
     int socket_desc;
     char comm[SOCKET_SIZE];
@@ -144,6 +143,7 @@ void *check_socket(void *x) {
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_desc == -1) {
         post("[timebandit~ ]: error creating socket");
+        socket_cleanup(0, &tb->state);
     }
     tb->socket = &socket_desc;
     
@@ -151,58 +151,77 @@ void *check_socket(void *x) {
     server.sin_family = AF_INET;
     server.sin_port = htons(tb->port);
     
+    //tb->mtx = PTHREAD_MUTEX_INITIALIZER;
+    
     if (connect(socket_desc, (struct sockaddr *) &server, sizeof(server)) < 0) {
         post("[timebandit~ ]: error connecting to remote server");
-        tb->state = 0;
+        socket_cleanup(tb->socket, &tb->state);
     } else {
+        post("[timebandit~ ]: remote server found");
         send(socket_desc, "ready", sizeof("ready"), 0);
+        pthread_cleanup_push(thread_cleanup, (void *) tb);
         
         fcntl(socket_desc, F_SETFL, 0);
         tb->state = 1;
         
         memset(comm, 0, SOCKET_SIZE);
-        //char *test[1024];
         while (1) {
             memset(comm, 0, sizeof(comm));
             if (recv(socket_desc, comm, SOCKET_SIZE, 0) < 0) {
                 post("[timebandit~ ]: read from socket %s:%d failed", DEFAULT_IP, DEFAULT_PORT);
+                socket_cleanup(tb->socket, &tb->state);
             } else {
+                
                 // PUT A QUEUE HERE LATER
-                if (strcmp(comm, "standby")) {
+                /*if (! strcmp(comm, "standby")) {
                     // MUTEX HERE?
-                    tb->queue = 1;
-                    strcpy(tb->remote, comm);
                     
-                } else {
-                    tb->queue = 0;
-                }
+                } else {*/
+                    strcpy(tb->remote, comm);
+                    dispatcher(tb);
+                //}
                 
                 //send(socket_desc, "ready", sizeof("ready"), 0);
             }
         }
+        pthread_cleanup_pop(1);
     }
-    
+    /*post("we've hit cleanup!");
+    socket_cleanup(tb->socket, &tb->state);*/
     return NULL;
+}
+                     
+void socket_cleanup(int *sock, short *state) {
+    if (sock) close(*sock);
+    *state = 0;
+    post("new tb state: %d", *state);
+    pthread_detach(pthread_self());
+    pthread_exit(NULL);
+}
+
+void thread_cleanup(void *x) {
+    int err = 0;
+    t_timebandit *tb = (t_timebandit *) x;
+    if (*tb->socket) err = close(*tb->socket);
+    post("cleanup handler works: %d", err);
 }
 
 void dispatcher(t_timebandit *x) {
-    //post("incoming: %s", x->remote);
-    x->queue--;
-    char *comm = x->remote;
-    char *args;
-    const char *command_delim = " ";
-    char *lasts;
+    post("incoming: %s", x->remote);
+    char *comm;
+    char *tofree, *remote;
+    tofree = remote = strdup(x->remote);
     int err = 0;
-    comm = strtok_r(comm, command_delim, &lasts);
-    args = strtok_r(NULL, command_delim, &lasts);
-    post("command: %s, args: %s", comm, args);
+    comm = strsep(&remote, " ");
+    post("command: %s, args: %s", comm, remote);
     
     if (! strcmp(comm, "inst")) {
-        err = dp_Inst(x, args);
+        post("inst made it");
+        err = dp_Inst(x, remote);
     } else if (! strcmp(comm, "play")) {
         timebandit_onPlayMsg(x);
     } else if (! strcmp(comm, "transport")) {
-        err = dp_Transport(x, (int) strtol(args, NULL, 0));
+        err = dp_Transport(x, (int) strtol(remote, NULL, 0));
     } else if (! strcmp(comm, "pause")) {
         timebandit_onPauseMsg(x);
     } else if (! strcmp(comm, "stop")) {
@@ -211,6 +230,8 @@ void dispatcher(t_timebandit *x) {
     if (err < 0) {
         post("[timebandit~ ]: remote usage error: %s", comm);
     }
+    free(comm);
+    free(tofree);
 }
 
 int dp_Inst(t_timebandit *x, char *args) {
@@ -237,13 +258,12 @@ int dp_Inst(t_timebandit *x, char *args) {
         post("beat %d: %d", i, inst->beats[i]);
     }
     inst->dead = 0;
-    inst->beat_index = inst->beat_len;
+    inst->beat_index = inst->beat_len - 1;
     beat_increment(inst, x->sr);
     free(tofree);
+    free(arg);
     return 0;
 }
-
-
 
 int dp_Transport(t_timebandit *x, int ms) {
     x->transport_ms = ms;
@@ -253,85 +273,33 @@ int dp_Transport(t_timebandit *x, int ms) {
 }
 
 int dp_Pause(t_timebandit *x) {
+    x->transport_status = PAUSE;
+    struct _inst *inst;
+    short i;
+    for (i = 0; i < MAX_INSTS; i++) {
+        inst = &x->insts[i];
+        inst->phase_sig_hold = (t_float) ((float) inst->sample_phase / (float) inst->sample_len);
+    }
     return 0;
 }
 
 int dp_Stop(t_timebandit *x) {
-    return 0;
-}
-
-void parse_Inst(t_timebandit *x, char *remote) {
-    char *token = remote;
-    const char *inst_delim = ":";
-    const char *name_delim = "~";
-    char *lasts;
-    token = strtok_r(token, inst_delim, &lasts);
-    post("index: %s", token);
+    x->transport_status = PAUSE;
+    short i;
+    
+    long beat;
     struct _inst *inst;
-    inst = &x->insts[atoi(token)];
-    char *name = strtok_r(NULL, inst_delim, &lasts);
-    char *name_lasts;
-    name = strtok_r(name, name_delim, &name_lasts);
-    post("name: %s", name);
-    inst->name = name;
-    token = strtok_r(NULL, name_delim, &name_lasts);
-    parse_Beats(inst, token);
-    inst->beat_index = inst->beat_len;
-    beat_increment(inst, x->sr);
-}
-
-void parse_Beats(struct _inst *inst, char *remote) {
-    char *token = remote;
-    const char *beat_delim = ",";
-    char *lasts;
-    token = strtok_r(token, beat_delim, &lasts);
-    short b = 0;
-    inst->beat_len = 0;
-    while(token) {
-        post("beat: %s", token);
-        inst->beats[b++] = atoi(token);
+    for (i = 0; i < MAX_INSTS; i++) {
+        inst = &x->insts[i];
+        inst->beat_index = 0;
         inst->dead = 0;
-        inst->beat_len++;
-        token = strtok_r(NULL, beat_delim, &lasts);
+        inst->phase_sig_hold = 0.0;
+        beat = inst->beats[0];
+        inst->sample_len = trunc((float) (beat * x->sr) / 1000.0);
+        inst->sample_phase = inst->sample_len;
+        //post("len %d beats %d phase %d", inst->sample_len, inst->beats[0], inst->sample_phase);
     }
-}
-
-void parse_LinkMsg(t_timebandit *x) {
-    char *remote = x->remote;
-    const char *command_delim = ";";
-    char *lasts;
-    char *token;
-    
-    token = strtok_r(remote, command_delim, &lasts);
-    while(token) { //loop each command
-        post("command: %s", token);
-        parse_Inst(x, token);
-        token = strtok_r(NULL, command_delim, &lasts);
-    }
-}
-
-void newparse_LinkMsg(t_timebandit *x) {
-    char *remote = x->remote;
-    const char *command_delim = ":";
-    char *lasts;
-    char *token;
-    
-    token = strtok_r(remote, command_delim, &lasts);
-    //if (strcmp(<#const char *#>, <#const char *#>))
-    while(token) { //loop each command
-        post("command: %s", token);
-        parse_Inst(x, token);
-        token = strtok_r(NULL, command_delim, &lasts);
-    }
-}
-
-void testparse(t_timebandit *x) {
-    char *remote = x->remote;
-    if (! strcmp(remote, "hooray it works")) {
-        post("whoopee it doubly works!");
-    } else if (! strcmp(remote, "standby")) {
-        post("standing by, baby");
-    }
+    return 0;
 }
 
 int beat_increment(struct _inst *inst, int sr) {
@@ -353,6 +321,8 @@ void timebandit_onBangMsg(t_timebandit *x) {
 }
 
 void timebandit_onLinkMsg(t_timebandit *x) {
+    x->thread_sig = 1;
+    
     int err = pthread_create(&x->socket_thread, NULL, check_socket, x);
     if (err != 0) {
         post("[timebandit~ ]: unable to initialize client thread");
@@ -401,7 +371,6 @@ void transport_reset(t_timebandit *x) {
                 inst->beat_index = b;
                 inst->sample_len = trunc(((float) (inst->beats[b] * x->sr)) / 1000.0);
                 
-                //post("calculating placement within beat: %d - %d", last_accum, x->transport_samp);
                 inst->sample_phase = inst->sample_len - last_accum;
                 post("sample_len %d phase %d last_accum %d", inst->sample_len, inst->sample_phase, last_accum);
                 inst->dead = 0;
@@ -413,26 +382,11 @@ void transport_reset(t_timebandit *x) {
                 inst->dead = 1;
             }
         }
-        //post("sample_len %d phase %d", inst->sample_len, inst->sample_phase);
     }
 }
 
 void timebandit_onStopMsg(t_timebandit *x) {
-    x->transport_status = PAUSE;
-    short i;
-    
-    long beat;
-    struct _inst *inst;
-    for (i = 0; i < MAX_INSTS; i++) {
-        inst = &x->insts[i];
-        inst->beat_index = 0;
-        inst->dead = 0;
-        inst->phase_sig_hold = 0.0;
-        beat = inst->beats[0];
-        inst->sample_len = trunc((float) (beat * x->sr) / 1000.0);
-        inst->sample_phase = inst->sample_len;
-        post("len %d beats %d phase %d", inst->sample_len, inst->beats[0], inst->sample_phase);
-    }
+    dp_Stop(x);
 }
 
 void timebandit_onPlayMsg(t_timebandit *x) {
@@ -440,13 +394,7 @@ void timebandit_onPlayMsg(t_timebandit *x) {
 }
 
 void timebandit_onPauseMsg(t_timebandit *x) {
-    x->transport_status = PAUSE;
-    struct _inst *inst;
-    short i;
-    for (i = 0; i < MAX_INSTS; i++) {
-        inst = &x->insts[i];
-        inst->phase_sig_hold = (t_float) ((float) inst->sample_phase / (float) inst->sample_len);
-    }
+    dp_Pause(x);
 }
 
 void timebandit_onInstMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
@@ -498,20 +446,19 @@ void timebandit_onTransportMsg(t_timebandit *x, t_symbol *msg, short argc, t_ato
 }
 
 void timebandit_free(t_timebandit *x) {
-    void *res; // thread status
+    int err;
+    void *res;
+    post("x->state: %d", x->state);
     if (x->state) {
-        close(*x->socket);
-        pthread_cancel(x->socket_thread);
-        pthread_join(x->socket_thread, &res);
+        err = pthread_cancel(x->socket_thread);
+        err = pthread_join(x->socket_thread, &res);
     }
     freebytes(x->arg, x->arg_len);
     freebytes(x->insts, sizeof(struct _inst) * MAX_INSTS);
     freebytes(x->ip, IP_SIZE);
-    short i;
-    for (i = 0; i < MAX_INSTS; i++) {
-        outlet_free(x->out_metro[i]);
-    }
-    clock_free(x->socket_clock);
+        outlet_free(x->out_metro);
+    //}
+    //clock_free(x->socket_clock);
 }
 
 void timebandit_tilde_setup(void) {
@@ -559,7 +506,7 @@ void *timebandit_new(void) {
     x->sr = 44100;
     
     strcpy(x->ip, DEFAULT_IP);
-    x->socket_clock = clock_new(x, (t_method) dispatcher);
+    //x->socket_clock = clock_new(x, (t_method) dispatcher);
     
     inlet_new(&x->obj, &x->obj.ob_pd, gensym("signal"), gensym("signal"));
     struct _inst *inst;
@@ -577,12 +524,11 @@ void *timebandit_new(void) {
         inst->dead = 1;
         inst->mute = 0;
         strcpy(inst->name, "NULL");
-        post("inst %s", inst->name);
         outlet_new(&x->obj, gensym("signal"));
     }
-    for(i = 0; i < MAX_INSTS; i++) {
-        x->out_metro[i] = outlet_new(&x->obj, &s_bang);
-    }
+    //for(i = 0; i < MAX_INSTS; i++) {
+        x->out_metro = outlet_new(&x->obj, &s_float);
+    //}
     return x;
 }
 
@@ -612,9 +558,9 @@ t_int *timebandit_perform(t_int *w) {
     short ping_counter = x->ping_counter;
     
     while(n--) {
-        if ((! ping_counter--) && (x->queue)) {
+        /*if ((! ping_counter--) && (x->queue)) {
             clock_delay(x->socket_clock, 0);
-        }
+        }*/
         if (x->transport_status == PLAY) {
             //while (! inst->dead) {
             
@@ -633,9 +579,8 @@ t_int *timebandit_perform(t_int *w) {
                         sig = (t_float) ((float) sample_phase / (float) sample_len);
                     }
                     
-                    
                     if (the_bang) {
-                        outlet_bang(x->out_metro[o]);
+                        outlet_float(x->out_metro, (t_float) o);
                         //clock_delay(bang_clock(x->out_metro[o]), 0);
                         the_bang = 0;
                     }

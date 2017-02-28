@@ -94,16 +94,11 @@ class Relay(threading.Thread):
                     print "retry failed, manually re-add node with the 'new' command"
                     node.kill()
 
-        while (self.status == 'offline'):
-            # wait for thread to join
-            time.sleep(5)
+        # goodbye!
 
-    def cleanup(self):
-        try:
-            for node in self.nodes.values():
-                node.kill()
-        except:
-            print 'error killing nodes'
+    def end(self):        
+        for node in self.nodes.values():
+            node.kill()
         self.status = 'offline'
         self._stopevent.set()
         
