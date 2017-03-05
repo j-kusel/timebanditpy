@@ -29,8 +29,9 @@ class Node(object):
 
     def kill(self):
         try:
-            self.conn.shutdown(socket.SHUT_RDWR)
-            self.conn.close()
+            if self.conn:
+                self.conn.shutdown(socket.SHUT_RDWR)
+                self.conn.close()
             self.queue = Queue.Queue()
         except socket.error as msg:
             print 'node shutdown failure - error {}:{}'.format(str(msg[0]), msg[1])

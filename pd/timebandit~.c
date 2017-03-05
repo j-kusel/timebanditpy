@@ -83,7 +83,7 @@ typedef struct _timebandit {
     
     int socket_desc;
     int *socket;
-    void *socket_clock;
+    //void *socket_clock;
     short port;
     char *ip;
     unsigned int ip_bytes;
@@ -230,8 +230,8 @@ void dispatcher(t_timebandit *x) {
     if (err < 0) {
         post("[timebandit~ ]: remote usage error: %s", comm);
     }
-    free(comm);
-    free(tofree);
+    //free(comm);
+    //free(tofree);
 }
 
 int dp_Inst(t_timebandit *x, char *args) {
@@ -454,10 +454,12 @@ void timebandit_free(t_timebandit *x) {
         err = pthread_join(x->socket_thread, &res);
     }
     freebytes(x->arg, x->arg_len);
-    freebytes(x->insts, sizeof(struct _inst) * MAX_INSTS);
+    short i;
+    for (i = 0; i < MAX_INSTS; i++) {
+        freebytes(x->insts[i].name, INST_NAME_SIZE);
+	}
     freebytes(x->ip, IP_SIZE);
-        outlet_free(x->out_metro);
-    //}
+    outlet_free(x->out_metro);
     //clock_free(x->socket_clock);
 }
 

@@ -163,7 +163,7 @@ class Scheme(object):
             self.server.start()
 
     def end_server(self):
-        self.server.cleanup()
+        self.server.end()
         if self.server.status == 'offline': 
             self.server.join()
 
