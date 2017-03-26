@@ -1,5 +1,6 @@
 from tbLib import InstManager, Measure, Rhythm
 from network.relay import Relay
+from collections import OrderedDict
 import threading
 from scipy import integrate
 import tbImg
@@ -7,6 +8,7 @@ import tbImg
 class Scheme(object):
     def __init__(self):
         self.inst = InstManager()
+        self.server = 0
 
     def create_inst(self, name='default'):
         """add a new instrument"""
@@ -147,24 +149,53 @@ class Scheme(object):
             for m in self.inst[i]:
                 m.offset += off
 
-    def start_server(self, ports=[]):
-        if ports and self.inst:
+    def start_server(self, ports=OrderedDict(), channels=OrderedDict()):
+        print "ports: ", ports, "channels: ", channels
+        if self.server:
+            print "disconnect old server before starting a new one"
+        elif ports and self.inst:
             self.server = Relay()
             n = 0
+            used = []
+            for inst in ports:
+                for p in ports[inst]:
+                    print "p=", p
+                    if p in used:
+                        print "adding {} to address {}:{}".format(inst, 'localhost', p)
+                        self.server.add(inst=inst, IP='localhost', PORT=p)
+                    else:
+                        print "binding {} to address {}:{}".format(inst, 'localhost', p)
+                        self.server.new(inst=inst, IP='localhost', PORT=ports[inst][0])
+                        used.append(p)
+
+
+                print self.server.router, self.server.nodes
+                index = 0
+
             for i in self.inst:
-                p = ports[n][0]
-                print "binding {} to address {}:{}".format(i, 'localhost', p)
-                self.server.new(inst=i, IP='localhost', PORT=p)
-                for m in self.inst[i]:
-                    beats = [m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))]
-                    comm = "inst {} {}".format(n, " ".join([str(b) for b in beats]))
+                inst = self.inst[i]
+                beats = []
+                for m in inst:
+                    beats.extend([m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))])
+                print "BEETS: ", beats
+                #################
+                for c in channels[i]:
+                    comm = "inst {} {}".format(c, " ".join([str(b) for b in beats]))
                     self.server.command(inst=i, msg=comm)
-                n += 1
+
             self.server.start()
 
     def end_server(self):
         self.server.end()
-        if self.server.status == 'offline': 
-            self.server.join()
+        self.server.join()
+        self.server = 0
+
+    def network_command(self, msg):
+        for inst in self.server.router:
+            self.server.command(inst=inst, msg=msg)
+
+    def network_transport(self, location):
+        for inst in self.server.router:
+            self.server.command(inst=inst, msg='transport {}'.format(location))
 
  

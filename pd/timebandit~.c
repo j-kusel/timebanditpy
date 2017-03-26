@@ -24,8 +24,9 @@
 
 #define DEFAULT_IP          "127.0.0.1"
 #define IP_SIZE             16
-#define DEFAULT_PORT        8500
+#define DEFAULT_PORT        8100
 #define SOCKET_SIZE         1024
+#define SOCK_TIMEOUT        2
 #define PING_SAMPLE_TIME    44100           // how frequently to ping the python server
 #define INST_NAME_SIZE      32
 
@@ -38,6 +39,9 @@
 
 
 static t_class *timebandit_class;
+
+struct timeval tv;
+
 
 struct _inst {
     int beats[MAX_BEATS];
@@ -153,6 +157,7 @@ void *check_socket(void *x) {
     
     //tb->mtx = PTHREAD_MUTEX_INITIALIZER;
     
+    
     if (connect(socket_desc, (struct sockaddr *) &server, sizeof(server)) < 0) {
         post("[timebandit~ ]: error connecting to remote server");
         socket_cleanup(tb->socket, &tb->state);
@@ -162,8 +167,11 @@ void *check_socket(void *x) {
         pthread_cleanup_push(thread_cleanup, (void *) tb);
         
         fcntl(socket_desc, F_SETFL, 0);
+        /*tv.tv_sec = SOCK_TIMEOUT;
+        if (setsockopt(socket_desc, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &tv, sizeof(struct timeval)) == -1) {
+            post("bad socket options");
+        }*/
         tb->state = 1;
-        
         memset(comm, 0, SOCKET_SIZE);
         while (1) {
             memset(comm, 0, sizeof(comm));
@@ -171,15 +179,16 @@ void *check_socket(void *x) {
                 post("[timebandit~ ]: read from socket %s:%d failed", DEFAULT_IP, DEFAULT_PORT);
                 socket_cleanup(tb->socket, &tb->state);
             } else {
-                
+                post("%s", comm);
                 // PUT A QUEUE HERE LATER
-                /*if (! strcmp(comm, "standby")) {
-                    // MUTEX HERE?
-                    
-                } else {*/
+                if (! strcmp(comm, "close")) {
+                    post("[timebandit~ ]: socket closed by remote host");
+                    send(socket_desc, "safe", sizeof("safe"), 0);
+                    socket_cleanup(tb->socket, &tb->state);
+                } else {
                     strcpy(tb->remote, comm);
                     dispatcher(tb);
-                //}
+                }
                 
                 //send(socket_desc, "ready", sizeof("ready"), 0);
             }
@@ -187,12 +196,12 @@ void *check_socket(void *x) {
         pthread_cleanup_pop(1);
     }
     /*post("we've hit cleanup!");
-    socket_cleanup(tb->socket, &tb->state);*/
+     socket_cleanup(tb->socket, &tb->state);*/
     return NULL;
 }
-                     
+
 void socket_cleanup(int *sock, short *state) {
-    if (sock) close(*sock);
+    close(*sock);
     *state = 0;
     post("new tb state: %d", *state);
     pthread_detach(pthread_self());
@@ -202,7 +211,7 @@ void socket_cleanup(int *sock, short *state) {
 void thread_cleanup(void *x) {
     int err = 0;
     t_timebandit *tb = (t_timebandit *) x;
-    if (*tb->socket) err = close(*tb->socket);
+    err = close(*tb->socket);
     post("cleanup handler works: %d", err);
 }
 
@@ -383,6 +392,7 @@ void transport_reset(t_timebandit *x) {
             }
         }
     }
+    x->transport_status = PAUSE;
 }
 
 void timebandit_onStopMsg(t_timebandit *x) {
@@ -457,7 +467,7 @@ void timebandit_free(t_timebandit *x) {
     short i;
     for (i = 0; i < MAX_INSTS; i++) {
         freebytes(x->insts[i].name, INST_NAME_SIZE);
-	}
+    }
     freebytes(x->ip, IP_SIZE);
     outlet_free(x->out_metro);
     //clock_free(x->socket_clock);
@@ -476,7 +486,7 @@ void timebandit_tilde_setup(void) {
     class_addmethod(timebandit_class, (t_method)timebandit_onInstMsg, gensym("inst"), A_GIMME, 0);
     class_addmethod(timebandit_class, (t_method)timebandit_onPortMsg, gensym("port"), A_GIMME, 0);
     class_addmethod(timebandit_class, (t_method)timebandit_onIPMsg, gensym("ip"), A_GIMME, 0);
-
+    
     class_addmethod(timebandit_class, (t_method)timebandit_onTransportMsg, gensym("transport"), A_GIMME, 0);
     
     class_addmethod(timebandit_class, (t_method)timebandit_onPlayMsg, gensym("play"), 0);
@@ -529,7 +539,7 @@ void *timebandit_new(void) {
         outlet_new(&x->obj, gensym("signal"));
     }
     //for(i = 0; i < MAX_INSTS; i++) {
-        x->out_metro = outlet_new(&x->obj, &s_float);
+    x->out_metro = outlet_new(&x->obj, &s_float);
     //}
     return x;
 }
@@ -561,8 +571,8 @@ t_int *timebandit_perform(t_int *w) {
     
     while(n--) {
         /*if ((! ping_counter--) && (x->queue)) {
-            clock_delay(x->socket_clock, 0);
-        }*/
+         clock_delay(x->socket_clock, 0);
+         }*/
         if (x->transport_status == PLAY) {
             //while (! inst->dead) {
             

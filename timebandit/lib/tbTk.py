@@ -1,5 +1,7 @@
 from Tkinter import *
 
+from collections import OrderedDict
+
 invarm = None
 invars = None
 
@@ -200,6 +202,9 @@ def Build_network(app):
     pop.title('network')
     pop.insts = []
     pop.ports = []
+    pop.channels = []
+    pop.mutes = []
+    pop.checkvars = []
     i = 0
     for inst in app.scheme.inst:
         print inst + 'network build'
@@ -208,18 +213,54 @@ def Build_network(app):
         pop.ports.append(Entry(pop))
         pop.ports[i].grid(row=i, column=1)
         pop.ports[i].insert(0, str(8100+i))
+        pop.channels.append(Entry(pop))
+        pop.channels[i].grid(row=i, column=2)
+        pop.channels[i].insert(0, str(0))
+
+        pop.checkvars.append(IntVar())
+        pop.mutes.append(Checkbutton(pop, text='M', variable=pop.checkvars[-1]))
+        pop.mutes[i].grid(row=i, column=3)
         i += 1
-    pop.server = Button(pop, text="start server", command = (lambda: start_network(app, pop)))
-    pop.server.grid(row=0, column=2)
-    pop.kill = Button(pop, text="disconnect server", command = (lambda: end_network(app, pop)))
-    pop.kill.grid(row=1, column=2)
+    pop.server = Button(pop, text='start server', command = (lambda: start_network(app, pop)))
+    pop.server.grid(row=0, column=4, columnspan=3)
+    pop.kill = Button(pop, text='disconnect server', command = (lambda: end_network(app, pop)))
+    pop.kill.grid(row=1, column=4, columnspan=3)
+
+    pop.play = Button(pop, text='play', command = (lambda: final_network_command(app, 'play')))
+    pop.play.grid(row=3, column=4)
+    pop.pause = Button(pop, text='pause', command = (lambda: final_network_command(app, 'pause')))
+    pop.pause.grid(row=3, column=5)
+    pop.stop = Button(pop, text='stop', command = (lambda: final_network_command(app, 'stop')))
+    pop.stop.grid(row=3, column=6)
+
+    pop.transport = Entry(pop)
+    pop.transport.grid(row=4, column=4)
+    #pop.tr_samp = Button(pop, text='samples', command = (lambda: final_network_transport(app, 'samp', pop.transport.get())))
+    pop.tr_ms = Button(pop, text='milliseconds', command = (lambda: final_network_transport(app, pop.transport.get())))
+    #pop.tr_samp.grid(row=4, column=5)
+    pop.tr_ms.grid(row=4, column=5, columnspan=2)
 
 def start_network(app, pop):
-    ports = [[int(i) for i in str(p.get()).split()] for p in pop.ports]
-    app.scheme.start_server(ports=ports)        
+    #ports = [[int(i) for i in str(p.get()).split()] for p in pop.ports]
+    ports = OrderedDict()
+    channels = OrderedDict()
+    i = 0
+    print app.scheme.inst, "scheme"
+    indices = []
+    for inst in app.scheme.inst:
+        ports[inst] = [int(p) for p in str(pop.ports[i].get()).split()]
+        channels[inst] = [int(c) for c in str(pop.channels[i].get()).split()]
+        i += 1
+    app.scheme.start_server(ports=ports, channels=channels)        
 
 def end_network(app, pop):
     app.scheme.end_server()
+
+def final_network_command(app, msg):
+    app.scheme.network_command(msg)
+
+def final_network_transport(app, location):
+    app.scheme.network_transport(location)
 
 def create_final(app):
     inst = app.insts.get(ACTIVE)

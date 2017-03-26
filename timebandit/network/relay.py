@@ -30,6 +30,7 @@ class Relay(threading.Thread):
 
     def add(self, inst=0, IP='localhost', PORT=7464):
         addr = (IP, PORT)
+        print self.nodes, "NODES"
         if addr in [n.getpeername() for n in self.nodes]:
             self.router[inst].append(self.nodes[addr])
         else:
@@ -45,7 +46,13 @@ class Relay(threading.Thread):
         self.outputs = []
         self.status = 'online'
         
-        while not self._stopevent.isSet() and self.inputs:
+        while self.inputs and self.status=='online': #(not self._stopevent.isSet()):
+            if self._stopevent.isSet():
+                for node in self.nodes.values():
+                    node.kill()
+                self.status = 'offline'
+                break
+
             time.sleep(0.05)
             readable, writable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
             for conn in readable: # if node can be read,
@@ -97,11 +104,7 @@ class Relay(threading.Thread):
         # goodbye!
 
     def end(self):        
-        for node in self.nodes.values():
-            node.kill()
-        self.status = 'offline'
-        self._stopevent.set()
-        
+        self._stopevent.set()        
 
 def test():
     pass

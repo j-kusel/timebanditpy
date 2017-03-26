@@ -14,6 +14,7 @@ class Node(object):
         self.queue = Queue.Queue()
         self.log = ["hello world",]
         self.state = 'empty'
+        self.channels = 0
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             #self.server.setblocking(1)
@@ -30,9 +31,13 @@ class Node(object):
     def kill(self):
         try:
             if self.conn:
-                self.conn.shutdown(socket.SHUT_RDWR)
-                self.conn.close()
-            self.queue = Queue.Queue()
+                self.conn.send('close')
+                #self.conn.shutdown(socket.SHUT_RDWR)
+                self.conn.setblocking(1)
+                if self.conn.recv(1024) == 'safe':
+                    sleep(0.2)
+                    self.conn.close()
+                    self.queue = Queue.Queue()
         except socket.error as msg:
             print 'node shutdown failure - error {}:{}'.format(str(msg[0]), msg[1])
 
