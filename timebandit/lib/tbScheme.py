@@ -171,19 +171,42 @@ class Scheme(object):
 
                 print self.server.router, self.server.nodes
                 index = 0
-
+            n=0
             for i in self.inst:
                 inst = self.inst[i]
                 beats = []
+                
                 for m in inst:
-                    beats.extend([m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))])
-                print "BEETS: ", beats
+                    #beats.extend([m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))])
+                    beats = [m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))]
+                    print "BEETS: ", beats
                 #################
-                for c in channels[i]:
-                    comm = "inst {} {}".format(c, " ".join([str(b) for b in beats]))
+                    #for c in channels[i]:
+                    #    comm = "inst {} {}".format(c, " ".join([str(b) for b in beats]))
+                    comm = "inst {} {}".format(n, " ".join([str(b) for b in beats]))
+                
                     self.server.command(inst=i, msg=comm)
-
+                n+=1
+                if n > 7:
+                    break
             self.server.start()
+
+    def quick_start(self):
+        if self.server:
+            print "disconnect old server before starting a new one"
+        else:
+            self.server = Relay()
+            self.server.new(inst='all', IP='localhost', PORT=8100)
+            n = 0
+            for i in self.inst:
+                for m in self.inst[i]:
+                    beats = [m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))]
+                    comm = "inst {} {}".format(n, " ".join([str(b) for b in beats]))
+                
+                    self.server.command(inst='all', msg=comm)
+                n += 1
+            self.server.start()
+
 
     def end_server(self):
         self.server.end()

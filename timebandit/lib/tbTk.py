@@ -240,6 +240,10 @@ def Build_network(app):
     #pop.tr_samp.grid(row=4, column=5)
     pop.tr_ms.grid(row=4, column=5, columnspan=2)
 
+    ########
+    pop.quick = Button(pop, text='QUICKSTART', command = app.scheme.quick_start)
+    pop.quick.grid(row=5, column=5)
+
 def start_network(app, pop):
     #ports = [[int(i) for i in str(p.get()).split()] for p in pop.ports]
     ports = OrderedDict()

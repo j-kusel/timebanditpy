@@ -10,6 +10,7 @@ class Relay(threading.Thread):
     def __init__(self):
         self.router = {}
         self.nodes = {}
+        self.extports = {}
         self.status = 'standby'
 
         self._stopevent = threading.Event()
@@ -27,11 +28,15 @@ class Relay(threading.Thread):
             self.router[inst] = [self.nodes[n.conn]]
         #else:
         #    print "Relay nodes dict must take timebandit Instrument as a key"
+        self.extports[addr] = n.conn.getpeername()
+
 
     def add(self, inst=0, IP='localhost', PORT=7464):
-        addr = (IP, PORT)
-        print self.nodes, "NODES"
-        if addr in [n.getpeername() for n in self.nodes]:
+        addr = (IP, PORT) 
+        extaddr = self.extports[(IP, PORT)]
+
+        addrs = [n.getpeername() for n in self.nodes]
+        if extaddr in addrs:
             self.router[inst].append(self.nodes[addr])
         else:
             print "use new method to initialize a new Node"
