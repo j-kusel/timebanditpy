@@ -206,7 +206,21 @@ class Scheme(object):
                     self.server.command(inst='all', msg=comm)
                 n += 1
             self.server.start()
-
+    
+    def audition(self):
+        if self.server:
+            self.server.command(inst='all', msg='stop')
+            self.server.command(inst='all', msg='clear')
+            n = 0
+            for i in self.inst:
+                for m in self.inst[i]:
+                    beats = [m.beats[b] - m.beats[b-1] for b in range(1, len(m.beats))]
+                    comm = "inst {} {}".format(n, " ".join([str(b) for b in beats]))
+                
+                    self.server.command(inst='all', msg=comm)
+                n += 1
+            self.server.command(inst='all', msg='stop')
+            self.server.command(inst='all', msg='play')
 
     def end_server(self):
         self.server.end()

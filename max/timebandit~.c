@@ -6,7 +6,11 @@
 //  Copyright © 2017 jordankusel. All rights reserved.
 //
 
-#include "m_pd.h"
+#include "ext.h"
+#include "z_dsp.h"
+#include "ext_obex.h"
+
+//#include "m_pd.h"
 #include <math.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -63,13 +67,13 @@ struct _inst {
 };
 
 typedef struct _timebandit {
-    t_object obj;
+    t_pxobject obj;
     t_float x_f;
     
     t_float *outs[MAX_INSTS];
     int out_bytes;
     
-    t_outlet *out_metro;
+    void *out_metro;
     int metro_bytes;
     
     int *arg;
@@ -107,7 +111,10 @@ typedef struct _timebandit {
 } t_timebandit;
 
 void *timebandit_new(void);
-void timebandit_dsp(t_timebandit *x, t_signal **sp); // does this need short *count?
+void timebandit_dsp64(t_timebandit *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags);
+
+void timebandit_assist(t_timebandit *x, void *b, long m, long a, char *s);
+
 void timebandit_onBangMsg(t_timebandit *x);
 void timebandit_onLinkMsg(t_timebandit *x);//, t_symbol *msg, short argc, t_atom *argv);
 void timebandit_onPortMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv);
@@ -134,7 +141,7 @@ int dp_Clear(t_timebandit *x);
 
 int beat_increment(struct _inst *inst, int sr);
 
-t_int *timebandit_perform(t_int *w);
+void timebandit_perform64(t_timebandit *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam);
 
 void *check_socket(void *x) {
     t_timebandit *tb = (t_timebandit *) x;
@@ -169,9 +176,9 @@ void *check_socket(void *x) {
         
         fcntl(socket_desc, F_SETFL, 0);
         /*tv.tv_sec = SOCK_TIMEOUT;
-        if (setsockopt(socket_desc, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &tv, sizeof(struct timeval)) == -1) {
-            post("bad socket options");
-        }*/
+         if (setsockopt(socket_desc, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &tv, sizeof(struct timeval)) == -1) {
+         post("bad socket options");
+         }*/
         tb->state = 1;
         memset(comm, 0, SOCKET_SIZE);
         while (1) {
@@ -275,7 +282,6 @@ int dp_Inst(t_timebandit *x, char *args) {
     inst->beat_index = inst->beat_len - 1;
     beat_increment(inst, x->sr);
     free(tofree);
-    free(arg);
     return 0;
 }
 
@@ -359,7 +365,7 @@ void timebandit_onLinkMsg(t_timebandit *x) {
 
 void timebandit_onPortMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     if(argc == 1) {
-        x->port = (short) atom_getint(argv);
+        x->port = (short) atom_getlong(argv);
         post("[timebandit~ ]: port changed to %d", x->port);
     } else {
         error("[timebandit~ ]: specify port change with \"port <integer>\"");
@@ -368,7 +374,8 @@ void timebandit_onPortMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *ar
 
 void timebandit_onIPMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *argv) {
     if(argc == 1) {
-        atom_string(argv, x->ip, x->ip_bytes);
+        t_symbol *sym = atom_getsym(argv);
+        strcpy(x->ip, sym->s_name);
         post("[timebandit~ ]: IP changed to %s", x->ip);
     } else {
         error("[timebandit~ ]: specify port change with \"port <string>\"");
@@ -439,7 +446,9 @@ void timebandit_onInstMsg(t_timebandit *x, t_symbol *msg, short argc, t_atom *ar
         post("%d inst", inst_index);
         struct _inst *inst = &x->insts[inst_index]; // the first argument is the instrument index
         
-        atom_string(inst_msg + 1, inst->name, inst->name_bytes);
+        //atom_string(inst_msg + 1, inst->name, inst->name_bytes);
+        t_symbol *sym = atom_getsym(argv + 1);
+        strcpy(inst->name, sym->s_name);
         
         for (i = 2; i < argc; i++) {
             inst->beats[i - 2] = (int) atom_getfloat(inst_msg + i);
@@ -462,15 +471,17 @@ void timebandit_onTransportMsg(t_timebandit *x, t_symbol *msg, short argc, t_ato
     float transport_var = atom_getfloat(argv + 1);
     float t_ms = 0.0;
     float t_samp = 0.0;
-    char *unit[8];
-    atom_string(argv, *unit, 8);
+    t_symbol *sym = atom_getsym(argv);
+    
+    char unit[8];
+    strcpy(unit, sym->s_name);
     
     
-    if (! strcmp(*unit, "ms")) {
+    if (! strcmp(unit, "ms")) {
         t_ms = 1.0;
         t_samp = (float) x->sr / 1000.0; // do these calculations when sample rate changes instead of every time
     }
-    if (! strcmp(*unit, "samp")) {
+    if (! strcmp(unit, "samp")) {
         t_ms = 1000.0 / (float) x->sr;
         t_samp = 1.0;
     }
@@ -493,36 +504,44 @@ void timebandit_free(t_timebandit *x) {
         freebytes(x->insts[i].name, INST_NAME_SIZE);
     }
     freebytes(x->ip, IP_SIZE);
-    outlet_free(x->out_metro);
+    dsp_free((t_pxobject *) x);
+    //outlet_free(x->out_metro);
     //clock_free(x->socket_clock);
 }
 
-void timebandit_tilde_setup(void) {
-    timebandit_class = class_new(gensym("timebandit~"),
-                                 (t_newmethod)timebandit_new,
-                                 (t_method)timebandit_free,
-                                 sizeof(t_timebandit),
-                                 0, 0);
-    CLASS_MAINSIGNALIN(timebandit_class, t_timebandit, x_f);
-    class_addmethod(timebandit_class, (t_method)timebandit_dsp, gensym("dsp"), 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onBangMsg, gensym("bang"), 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onLinkMsg, gensym("link"), 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onInstMsg, gensym("inst"), A_GIMME, 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onPortMsg, gensym("port"), A_GIMME, 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onIPMsg, gensym("ip"), A_GIMME, 0);
+void ext_main(void *r) {
+    t_class *c = class_new("timebandit~",
+                           (method)timebandit_new,
+                           (method)timebandit_free,
+                           sizeof(t_timebandit),
+                           0, 0);
+    //CLASS_MAINSIGNALIN(timebandit_class, t_timebandit, x_f);
+    class_addmethod(c, (method)timebandit_dsp64, "dsp64", A_CANT, 0);
+    class_addmethod(c, (method)timebandit_assist, "assist", A_CANT, 0);
     
-    class_addmethod(timebandit_class, (t_method)timebandit_onTransportMsg, gensym("transport"), A_GIMME, 0);
+    class_addmethod(c, (method)timebandit_onBangMsg, "bang", 0);
+    class_addmethod(c, (method)timebandit_onLinkMsg, "link", 0);
+    class_addmethod(c, (method)timebandit_onInstMsg, "inst", A_GIMME, 0);
+    class_addmethod(c, (method)timebandit_onPortMsg, "port", A_GIMME, 0);
+    class_addmethod(c, (method)timebandit_onIPMsg, "ip", A_GIMME, 0);
     
-    class_addmethod(timebandit_class, (t_method)timebandit_onPlayMsg, gensym("play"), 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onPauseMsg, gensym("pause"), 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onStopMsg, gensym("stop"), 0);
-    class_addmethod(timebandit_class, (t_method)timebandit_onClearMsg, gensym("clear"), 0);
+    class_addmethod(c, (method)timebandit_onTransportMsg, "transport", A_GIMME, 0);
+    
+    class_addmethod(c, (method)timebandit_onPlayMsg, "play", 0);
+    class_addmethod(c, (method)timebandit_onPauseMsg, "pause", 0);
+    class_addmethod(c, (method)timebandit_onStopMsg, "stop", 0);
+    class_addmethod(c, (method)timebandit_onClearMsg, "clear", 0);
+    
+    class_dspinit(c);
+    class_register(CLASS_BOX, c);
+    
+    timebandit_class = c;
     
     post("[timebandit~ ]: http://github.com/ultraturtle0/timebandit.git");
 }
 
 void *timebandit_new(void) {
-    t_timebandit *x = (t_timebandit *) pd_new(timebandit_class);
+    t_timebandit *x = (t_timebandit *) object_alloc(timebandit_class);
     
     x->arg_len = MAX_BEATS * sizeof(int);
     x->arg = (int *) getbytes(x->arg_len);
@@ -545,7 +564,7 @@ void *timebandit_new(void) {
     strcpy(x->ip, DEFAULT_IP);
     //x->socket_clock = clock_new(x, (t_method) dispatcher);
     
-    inlet_new(&x->obj, &x->obj.ob_pd, gensym("signal"), gensym("signal"));
+    dsp_setup((t_pxobject *) x, 1);
     struct _inst *inst;
     x->inst_len = 0;
     short i;
@@ -561,30 +580,42 @@ void *timebandit_new(void) {
         inst->dead = 1;
         inst->mute = 0;
         strcpy(inst->name, "NULL");
-        outlet_new(&x->obj, gensym("signal"));
+        outlet_new(x, "signal");
     }
     //for(i = 0; i < MAX_INSTS; i++) {
-    x->out_metro = outlet_new(&x->obj, &s_float);
+    x->out_metro = outlet_new(x, "float");
     //}
-    return x;
+    return (x);
 }
 
-void timebandit_dsp(t_timebandit *x, t_signal **sp) {
-    if (x->sr != sp[0]->s_sr && sp[0]->s_sr) { // if sampling rate changes
-        x->sr = (int) sp[0]->s_sr;
+void timebandit_dsp64(t_timebandit *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags) {
+    /*if (x->sr != sp[0]->s_sr && sp[0]->s_sr) { // if sampling rate changes
+     x->sr = (int) sp[0]->s_sr;
+     }*/
+    /*dsp_add(timebandit_perform, 12, x, sp[0]->s_vec, sp[1]->s_vec, sp[2]->s_vec, sp[3]->s_vec, sp[4]->s_vec, sp[5]->s_vec, sp[6]->s_vec, sp[7]->s_vec, sp[8]->s_vec, sp[9]->s_vec, sp[0]->s_n); // pg 29*/
+    object_method(dsp64, gensym("dsp_add64"), x, timebandit_perform64, 0, NULL);
+}
+
+void timebandit_assist(t_timebandit *x, void *b, long m, long a, char *s) {
+    if (m == ASSIST_INLET) {
+        object_post((t_object *) x, "hooray inlet assist works");
+    } else {
+        object_post((t_object *) x, "hooray outlet assist works");
     }
-    dsp_add(timebandit_perform, 12, x, sp[0]->s_vec, sp[1]->s_vec, sp[2]->s_vec, sp[3]->s_vec, sp[4]->s_vec, sp[5]->s_vec, sp[6]->s_vec, sp[7]->s_vec, sp[8]->s_vec, sp[9]->s_vec, sp[0]->s_n); // pg 29
 }
 
-t_int *timebandit_perform(t_int *w) {
-    t_timebandit *x = (t_timebandit *) (w[1]);
+void timebandit_perform64(t_timebandit *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam) {
+    
+    //t_timebandit *x = (t_timebandit *) (w[1]);
+    
+    //t_double *inL = ins[0];
     
     short o;
-    for (o = 0; o < MAX_INSTS; o++) {
-        x->outs[o] = (t_float *) (w[o + 4]);
-    }
+    /*for (o = 0; o < MAX_INSTS; o++) {
+     outs[o] = (t_float *) (w[o + 4]);
+     }*/
     
-    t_int n = w[12];
+    t_int n = sampleframes;
     
     t_float sig = 0.0;
     
@@ -628,16 +659,15 @@ t_int *timebandit_perform(t_int *w) {
                 } else {
                     sig = (t_float) -1.0;
                 }
-                *x->outs[o]++ = sig;
+                *outs[o]++ = sig;
             }
         } else {
             for (o = 0; o < MAX_INSTS; o++) {
                 inst = &x->insts[o];
-                *x->outs[o]++ = inst->phase_sig_hold;
+                *outs[o]++ = inst->phase_sig_hold;
             }
         }
     }
     x->ping_counter = ping_counter;
-    return w + 13;
 }
 

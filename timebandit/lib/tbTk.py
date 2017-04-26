@@ -241,6 +241,8 @@ def Build_network(app):
     pop.tr_ms.grid(row=4, column=5, columnspan=2)
 
     ########
+    pop.audition = Button(pop, text='AUDITION', command = app.scheme.audition)
+    pop.audition.grid(row=5, column=4)
     pop.quick = Button(pop, text='QUICKSTART', command = app.scheme.quick_start)
     pop.quick.grid(row=5, column=5)
 
@@ -291,7 +293,7 @@ def al_box_update(app, box, whichinst):
 def al_final(app, pop):
     try:
         pm = app.scheme.inst[pop.primarydrop.cget("text")][pop.primaryalign.curselection()[0]]
-        rm = app.scheme.inst[pop.replicadrop.cget("text")][pop.primaryalign.curselection()[0]]
+        rm = app.scheme.inst[pop.replicadrop.cget("text")][pop.replicaalign.curselection()[0]]
     except IndexError:
         print 'instrument/measure selections incorrect'
     ppt = pop.primarypivot.get()
@@ -313,6 +315,7 @@ def al_final(app, pop):
     except ValueError:
         print "enter 'start', 'end', or a beat number"
    
+    print "DEBUG: ", pm, rm, ppt, rpt
     app.scheme_dispatcher('align', primary_meas=pm, replica_meas=rm, primary_point=ppt, replica_point=rpt)
     refresh(app)
 
