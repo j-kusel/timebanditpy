@@ -2,10 +2,7 @@ timebandit
 ==========
 polytempo composition suite for python and extensions
 
-requires `numpy`_, `scipy`_, `Tkinter`_
-_numpy: https://github.com/numpy/numpy
-_scipy: https://github.com/scipy/scipy
-_Tkinter: https://github.com/python/python-git/python/blob/master/Lib/lib-tk/Tkinter
+requires [numpy](https://github.com/numpy/numpy), [scipy](https://github.com/scipy/scipy), [Tkinter](https://github.com/python/python-git/python/blob/master/Lib/lib-tk/Tkinter).
 
 current features
 ----------------
@@ -19,9 +16,9 @@ current features
 planned features
 ----------------
 * .txt compiler / interpretive shell for line-by-line rapid score prototyping
-* [pure data] external integration for audio preview / live performance 
-[pure data]: https://github.com/pure-data/pure-data
+* [pure data](https://github.com/pure-data/pure-data) external integration for audio preview / live networked performance 
 * curve tension support
 * MusicXML support
 * Max/MSP integration / M4L device 
 * App system for third-party plugins
+
